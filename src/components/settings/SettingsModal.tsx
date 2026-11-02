@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Check, Copy, ExternalLink, LoaderCircle } from 'lucide-react'
+import { ArrowDownToLine, Check, Copy, ExternalLink, LoaderCircle, RotateCw } from 'lucide-react'
+import type { UpdateState } from '@core/ipc'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/IconButton'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { useSettingsStore } from '@/store/useSettingsStore'
+import { useUpdateStore } from '@/store/useUpdateStore'
 import { cx } from '@/lib/format'
 
 export function SettingsModal() {
@@ -17,6 +19,7 @@ export function SettingsModal() {
         <SpotifySection />
         <YouTubeMusicSection />
         <PlaybackSection />
+        <UpdatesSection />
         <section className="px-6 py-4 text-[12px] text-zinc-500">
           SpotiTube {appInfo ? `v${appInfo.version}` : ''} · Credentials and cookies are encrypted with your operating
           system's keychain and never leave this device except to talk to Spotify and YouTube.
@@ -226,6 +229,87 @@ function SettingToggle({ label, description, checked, onChange }: { label: strin
   )
 }
 
+function UpdatesSection() {
+  const settings = useSettingsStore((s) => s.settings)
+  const updateSettings = useSettingsStore((s) => s.update)
+  const update = useUpdateStore((s) => s.update)
+  const check = useUpdateStore((s) => s.check)
+  const download = useUpdateStore((s) => s.download)
+  const install = useUpdateStore((s) => s.install)
+
+  if (!settings || !update) return null
+  const busy = update.status === 'checking' || update.status === 'downloading'
+
+  const statusText: Record<UpdateState['status'], string> = {
+    idle: 'Not checked yet',
+    checking: 'Checking for updates…',
+    available: `Version ${update.version} is available`,
+    'not-available': 'You are on the latest version',
+    downloading: `Downloading ${update.version}… ${Math.round(update.progress?.percent ?? 0)}%`,
+    downloaded: `Version ${update.version} is ready to install`,
+    error: update.error ?? 'Update check failed',
+    unsupported: 'Updates are only available in installed builds'
+  }
+
+  return (
+    <section className="space-y-4 px-6 py-5">
+      <h3 className="text-[14px] font-semibold">Updates</h3>
+      <div className="flex items-center justify-between gap-4 rounded-lg bg-black/25 px-3.5 py-3 ring-1 ring-white/6">
+        <div className="min-w-0">
+          <p className="text-[13px] text-zinc-200">
+            SpotiTube <span className="tabular-nums">v{update.currentVersion}</span>
+          </p>
+          <p className={cx('mt-0.5 text-[12px]', update.status === 'error' ? 'text-red-300' : 'text-zinc-500')}>
+            {statusText[update.status]}
+          </p>
+          {update.status === 'downloading' && (
+            <div className="mt-2 h-1 w-48 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full bg-spotify transition-[width]" style={{ width: `${Math.round(update.progress?.percent ?? 0)}%` }} />
+            </div>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {update.status === 'downloaded' ? (
+            <Button variant="primary" onClick={() => void install()}>
+              <RotateCw size={14} /> Restart to update
+            </Button>
+          ) : update.status === 'available' ? (
+            <Button variant="primary" onClick={() => void download()}>
+              <ArrowDownToLine size={14} /> Download
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled={busy || update.status === 'unsupported'} onClick={() => void check()}>
+              {update.status === 'checking' && <LoaderCircle size={14} className="animate-spin" />}
+              Check for updates
+            </Button>
+          )}
+        </div>
+      </div>
+      {update.releaseNotes && (update.status === 'available' || update.status === 'downloading' || update.status === 'downloaded') && (
+        <div className="max-h-32 overflow-y-auto rounded-lg bg-black/20 px-3.5 py-2.5 text-[12px] whitespace-pre-line text-zinc-400 ring-1 ring-white/6">
+          {update.releaseNotes}
+        </div>
+      )}
+      {update.status === 'error' && (
+        <a
+          href={update.releasesUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-[12px] text-zinc-300 underline underline-offset-2"
+        >
+          Download the latest version manually <ExternalLink size={11} />
+        </a>
+      )}
+      <SettingToggle
+        label="Automatic updates"
+        description="Check for new versions in the background and download them; they install the next time SpotiTube restarts."
+        checked={settings.autoUpdate}
+        onChange={(v) => void updateSettings({ autoUpdate: v })}
+      />
+    </section>
+  )
+}
+
 function PlaybackSection() {
   const settings = useSettingsStore((s) => s.settings)
   const update = useSettingsStore((s) => s.update)
@@ -266,7 +350,7 @@ function PlaybackSection() {
           onBlur={saveYtDlp}
           onKeyDown={(e) => e.key === 'Enter' && saveYtDlp()}
           spellCheck={false}
-          placeholder="C:\\Tools\\yt-dlp.exe"
+          placeholder="C:\Tools\yt-dlp.exe"
           className={cx(inputClass, 'font-mono')}
         />
       </Field>

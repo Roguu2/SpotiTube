@@ -154,6 +154,21 @@ git push --follow-tags
 
 Then review the draft on the repository's **Releases** page and publish it.
 
+### In-app updates
+
+Installed builds update themselves from GitHub Releases (`electron-updater`):
+
+- **Checks:** SpotiTube checks 15 s after launch and every 4 hours. You can also check any time in
+  **Settings → Updates**.
+- **Download:** with **Automatic updates** on (the default), a new version downloads in the background. When it's
+  ready, a **Restart to update** card appears in the sidebar. Restarting installs silently and relaunches the app;
+  otherwise the update installs the next time SpotiTube quits.
+- **Release requirements:** the app only sees **published** releases (not drafts), with the `latest.yml` /
+  `latest-mac.yml` files the release workflow uploads. The releases must be readable without signing in, so a private
+  repository needs its releases published somewhere public.
+- **macOS:** automatic installation only works for code-signed builds. Unsigned macOS builds report the update and
+  link to the download page instead.
+
 Installers are **not code-signed**. Windows SmartScreen will warn on first run (**More info → Run anyway**). On
 macOS, right-click the app and choose **Open** the first time, or run `xattr -cr /Applications/SpotiTube.app`. To
 sign, add `CSC_LINK` / `CSC_KEY_PASSWORD` (and Apple notarization credentials) as repository secrets and remove

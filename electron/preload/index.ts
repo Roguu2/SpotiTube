@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { IpcChannels, type ElectronAPI, type IpcChannel, type IpcResult, type MediaCommand } from '@core/ipc'
+import {
+  IpcChannels,
+  type ElectronAPI,
+  type IpcChannel,
+  type IpcResult,
+  type MediaCommand,
+  type UpdateState
+} from '@core/ipc'
 
 /** Invokes a main-process handler and unwraps its {@link IpcResult} envelope. */
 async function invoke<T>(channel: IpcChannel, ...args: unknown[]): Promise<T> {
@@ -69,6 +76,13 @@ const electronAPI: ElectronAPI = {
     saveCustomPresets: (presets) => invoke(IpcChannels.dspSaveCustomPresets, presets),
     getTrackProfile: (trackId) => invoke(IpcChannels.dspGetTrackProfile, trackId),
     saveTrackProfile: (trackId, profile) => invoke(IpcChannels.dspSaveTrackProfile, trackId, profile)
+  },
+  updates: {
+    getState: () => invoke(IpcChannels.updatesGetState),
+    check: () => invoke(IpcChannels.updatesCheck),
+    download: () => invoke(IpcChannels.updatesDownload),
+    install: () => invoke(IpcChannels.updatesInstall),
+    onStateChange: (listener) => subscribe<[UpdateState]>(IpcChannels.updatesStateChanged, listener)
   }
 }
 

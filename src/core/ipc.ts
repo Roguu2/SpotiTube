@@ -47,7 +47,13 @@ export const IpcChannels = {
   dspSetRememberPerTrack: 'dsp:set-remember-per-track',
   dspSaveCustomPresets: 'dsp:save-custom-presets',
   dspGetTrackProfile: 'dsp:get-track-profile',
-  dspSaveTrackProfile: 'dsp:save-track-profile'
+  dspSaveTrackProfile: 'dsp:save-track-profile',
+
+  updatesGetState: 'updates:get-state',
+  updatesCheck: 'updates:check',
+  updatesDownload: 'updates:download',
+  updatesInstall: 'updates:install',
+  updatesStateChanged: 'updates:state-changed'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -98,6 +104,32 @@ export interface AppSettings {
   closeToTray: boolean
   /** Fall back to a synthesized preview when no stream can be resolved. */
   syntheticFallback: boolean
+  /** Check for, and download, updates in the background. */
+  autoUpdate: boolean
+}
+
+export type UpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+  /** Development builds cannot update themselves. */
+  | 'unsupported'
+
+export interface UpdateState {
+  status: UpdateStatus
+  currentVersion: string
+  /** Version offered by the update server. */
+  version?: string
+  releaseNotes?: string
+  progress?: { percent: number; bytesPerSecond: number; transferred: number; total: number }
+  error?: string
+  checkedAt?: number
+  /** Where updates can be downloaded manually. */
+  releasesUrl: string
 }
 
 export type AppSettingsPatch = Partial<Omit<AppSettings, 'spotifyRedirectUri'>>
@@ -165,5 +197,13 @@ export interface ElectronAPI {
     getTrackProfile(trackId: string): Promise<TrackDspProfile | null>
     /** `null` forgets the track's profile. */
     saveTrackProfile(trackId: string, profile: { dsp: DspSettings; loop: LoopRegion } | null): Promise<void>
+  }
+  updates: {
+    getState(): Promise<UpdateState>
+    check(): Promise<UpdateState>
+    download(): Promise<UpdateState>
+    /** Quits, installs the downloaded update and relaunches. */
+    install(): Promise<void>
+    onStateChange(listener: (state: UpdateState) => void): Unsubscribe
   }
 }

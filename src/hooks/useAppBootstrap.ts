@@ -5,6 +5,7 @@ import { useLibraryStore } from '@/store/useLibraryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { toast } from '@/store/useToastStore'
+import { useUpdateStore } from '@/store/useUpdateStore'
 
 const SEEK_STEP_SECONDS = 10
 
@@ -16,6 +17,11 @@ const SEEK_STEP_SECONDS = 10
 export function useAppBootstrap(): void {
   useEffect(() => {
     void useSettingsStore.getState().load()
+    let offUpdates: (() => void) | null = null
+    void useUpdateStore
+      .getState()
+      .init()
+      .then((off) => (offUpdates = off))
     void useLibraryStore.getState().loadLibrary()
     useAudioEngineStore
       .getState()
@@ -86,6 +92,7 @@ export function useAppBootstrap(): void {
       offLibrary()
       offMedia()
       offTransport()
+      offUpdates?.()
     }
   }, [])
 }

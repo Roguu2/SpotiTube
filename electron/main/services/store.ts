@@ -38,7 +38,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   ytDlpPath: '',
   showDemoContent: true,
   closeToTray: false,
-  syntheticFallback: true
+  syntheticFallback: true,
+  autoUpdate: true
 }
 
 const store = new Store<PersistedState>({
@@ -65,6 +66,7 @@ export function updateSettings(patch: AppSettingsPatch): AppSettings {
   if (patch.showDemoContent !== undefined) next.showDemoContent = patch.showDemoContent
   if (patch.closeToTray !== undefined) next.closeToTray = patch.closeToTray
   if (patch.syntheticFallback !== undefined) next.syntheticFallback = patch.syntheticFallback
+  if (patch.autoUpdate !== undefined) next.autoUpdate = patch.autoUpdate
   store.set('settings', next)
   return getSettings()
 }

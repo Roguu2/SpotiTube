@@ -4,6 +4,8 @@ import { createMainWindow } from './window'
 import { registerWindowIpc } from './ipc/window'
 import { registerLibraryIpc } from './ipc/library'
 import { registerDspIpc } from './ipc/dsp'
+import { registerUpdateIpc } from './ipc/updates'
+import { UpdateService } from './services/updater'
 import { getSettings } from './services/store'
 import { YouTubeClient } from './services/youtube'
 import { StreamResolver } from './services/streamResolver'
@@ -83,6 +85,10 @@ async function bootstrap(): Promise<void> {
   registerWindowIpc()
   registerLibraryIpc({ registry, spotifyAuth, spotify, hybrid, youtube })
   registerDspIpc()
+
+  const updates = new UpdateService()
+  registerUpdateIpc(updates)
+  updates.start()
   registerMediaKeys()
 
   tray = new AppTray({
@@ -95,6 +101,7 @@ async function bootstrap(): Promise<void> {
 
   app.on('will-quit', () => {
     unregisterMediaKeys()
+    updates.stop()
     proxy.stop()
     tray?.destroy()
   })
