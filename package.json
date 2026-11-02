@@ -3,10 +3,18 @@
   "productName": "SpotiTube",
   "version": "0.1.0",
   "description": "Unified Spotify + YouTube Music desktop player with a real-time DSP audio engine.",
+  "homepage": "https://github.com/Roguu2/SpotiTube",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Roguu2/SpotiTube.git"
+  },
   "main": "./out/main/index.js",
   "author": "SpotiTube",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
+  "engines": {
+    "node": ">=22.12"
+  },
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
@@ -19,7 +27,8 @@
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "icon": "node scripts/generate-icon.mjs"
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
