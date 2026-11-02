@@ -4,6 +4,7 @@
  */
 
 import type { PlaybackSource, StreamCandidate, UnifiedPlaylist, UnifiedTrack } from './types'
+import type { DspPersistedState, DspSettings, EqPreset, LoopRegion, TrackDspProfile } from './dsp'
 
 export const IpcChannels = {
   appGetInfo: 'app:get-info',
@@ -39,7 +40,14 @@ export const IpcChannels = {
   settingsUpdate: 'settings:update',
 
   mediaCommand: 'media:command',
-  mediaNowPlaying: 'media:now-playing'
+  mediaNowPlaying: 'media:now-playing',
+
+  dspGetState: 'dsp:get-state',
+  dspSaveGlobal: 'dsp:save-global',
+  dspSetRememberPerTrack: 'dsp:set-remember-per-track',
+  dspSaveCustomPresets: 'dsp:save-custom-presets',
+  dspGetTrackProfile: 'dsp:get-track-profile',
+  dspSaveTrackProfile: 'dsp:save-track-profile'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -148,5 +156,14 @@ export interface ElectronAPI {
   media: {
     onCommand(listener: (command: MediaCommand) => void): Unsubscribe
     updateNowPlaying(info: NowPlayingInfo | null): void
+  }
+  dsp: {
+    getState(): Promise<DspPersistedState>
+    saveGlobal(settings: DspSettings): Promise<void>
+    setRememberPerTrack(enabled: boolean): Promise<void>
+    saveCustomPresets(presets: EqPreset[]): Promise<EqPreset[]>
+    getTrackProfile(trackId: string): Promise<TrackDspProfile | null>
+    /** `null` forgets the track's profile. */
+    saveTrackProfile(trackId: string, profile: { dsp: DspSettings; loop: LoopRegion } | null): Promise<void>
   }
 }

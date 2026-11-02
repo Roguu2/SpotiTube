@@ -61,6 +61,14 @@ const electronAPI: ElectronAPI = {
   media: {
     onCommand: (listener) => subscribe<[MediaCommand]>(IpcChannels.mediaCommand, listener),
     updateNowPlaying: (info) => ipcRenderer.send(IpcChannels.mediaNowPlaying, info)
+  },
+  dsp: {
+    getState: () => invoke(IpcChannels.dspGetState),
+    saveGlobal: (settings) => invoke(IpcChannels.dspSaveGlobal, settings),
+    setRememberPerTrack: (enabled) => invoke(IpcChannels.dspSetRememberPerTrack, enabled),
+    saveCustomPresets: (presets) => invoke(IpcChannels.dspSaveCustomPresets, presets),
+    getTrackProfile: (trackId) => invoke(IpcChannels.dspGetTrackProfile, trackId),
+    saveTrackProfile: (trackId, profile) => invoke(IpcChannels.dspSaveTrackProfile, trackId, profile)
   }
 }
 

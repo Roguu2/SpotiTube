@@ -3,6 +3,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createMainWindow } from './window'
 import { registerWindowIpc } from './ipc/window'
 import { registerLibraryIpc } from './ipc/library'
+import { registerDspIpc } from './ipc/dsp'
 import { getSettings } from './services/store'
 import { YouTubeClient } from './services/youtube'
 import { StreamResolver } from './services/streamResolver'
@@ -61,6 +62,7 @@ async function bootstrap(): Promise<void> {
 
   registerWindowIpc()
   registerLibraryIpc({ registry, spotifyAuth, spotify, hybrid, youtube })
+  registerDspIpc()
   registerMediaKeys()
 
   tray = new AppTray({
