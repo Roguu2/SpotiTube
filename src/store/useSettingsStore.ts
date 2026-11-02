@@ -2,11 +2,11 @@ import { create } from 'zustand'
 import type { AppInfo, AppSettings, AppSettingsPatch, AuthStatus } from '@core/ipc'
 import { toast } from './useToastStore'
 
-const STUDIO_KEY = 'spotitube.studioOpen'
+const QUEUE_KEY = 'spotitube.queueOpen'
 
-function readStudioOpen(): boolean {
+function readQueueOpen(): boolean {
   try {
-    return localStorage.getItem(STUDIO_KEY) === '1'
+    return localStorage.getItem(QUEUE_KEY) === '1'
   } catch {
     return false
   }
@@ -21,7 +21,7 @@ interface SettingsState {
   settings: AppSettings | null
   auth: AuthStatus | null
   connecting: 'spotify' | 'ytmusic' | null
-  studioOpen: boolean
+  queueOpen: boolean
   settingsOpen: boolean
 
   load(): Promise<void>
@@ -31,7 +31,7 @@ interface SettingsState {
   disconnectSpotify(): Promise<void>
   connectYouTubeMusic(cookie: string): Promise<boolean>
   disconnectYouTubeMusic(): Promise<void>
-  toggleStudio(open?: boolean): void
+  toggleQueue(open?: boolean): void
   setSettingsOpen(open: boolean): void
 }
 
@@ -40,7 +40,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: null,
   auth: null,
   connecting: null,
-  studioOpen: readStudioOpen(),
+  queueOpen: readQueueOpen(),
   settingsOpen: false,
 
   async load() {
@@ -104,11 +104,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     toast.info('YouTube Music disconnected')
   },
 
-  toggleStudio(open) {
-    const studioOpen = open ?? !get().studioOpen
-    set({ studioOpen })
+  toggleQueue(open) {
+    const queueOpen = open ?? !get().queueOpen
+    set({ queueOpen })
     try {
-      localStorage.setItem(STUDIO_KEY, studioOpen ? '1' : '0')
+      localStorage.setItem(QUEUE_KEY, queueOpen ? '1' : '0')
     } catch {
       // Drawer state is a convenience only.
     }

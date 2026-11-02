@@ -14,6 +14,7 @@ import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useEmbedLayoutStore, type EmbedCorner, type EmbedSize } from '@/store/useEmbedLayoutStore'
 import { cx } from '@/lib/format'
+import { QUEUE_PANEL_WIDTH } from '@/components/queue/QueuePanel'
 
 /** Video viewport per size. YouTube requires at least 200×200 px for embedded players. */
 const VIDEO: Record<EmbedSize, { width: number; height: number }> = {
@@ -27,7 +28,6 @@ const GAP = 12
 const TITLEBAR_HEIGHT = 44
 const PLAYER_BAR_HEIGHT = 88
 const SIDEBAR_WIDTH = 256
-const STUDIO_WIDTH = 360
 
 function useEmbedActive(): boolean {
   return useAudioEngineStore((s) => s.backend === 'embed' && s.transport.src !== null)
@@ -42,7 +42,7 @@ function useEmbedActive(): boolean {
 export function EmbedMiniPlayer() {
   const hostRef = useRef<HTMLDivElement>(null)
   const active = useEmbedActive()
-  const studioOpen = useSettingsStore((s) => s.studioOpen)
+  const queueOpen = useSettingsStore((s) => s.queueOpen)
   const { docked, corner, size, dockSlot, setLayout, cycleSize } = useEmbedLayoutStore()
   const [slotRect, setSlotRect] = useState<DOMRect | null>(null)
   const [drag, setDrag] = useState<{ startX: number; startY: number; dx: number; dy: number } | null>(null)
@@ -76,7 +76,7 @@ export function EmbedMiniPlayer() {
     ? { left: slotRect.left, top: slotRect.top }
     : {
         ...(corner.endsWith('right')
-          ? { right: GAP + (studioOpen ? STUDIO_WIDTH : 0) }
+          ? { right: GAP + (queueOpen ? QUEUE_PANEL_WIDTH : 0) }
           : { left: SIDEBAR_WIDTH + GAP }),
         ...(corner.startsWith('bottom') ? { bottom: PLAYER_BAR_HEIGHT + GAP } : { top: TITLEBAR_HEIGHT + GAP })
       }
@@ -101,12 +101,12 @@ export function EmbedMiniPlayer() {
         setLayout({ docked: true })
         return
       }
-      const contentMidX = (SIDEBAR_WIDTH + window.innerWidth - (studioOpen ? STUDIO_WIDTH : 0)) / 2
+      const contentMidX = (SIDEBAR_WIDTH + window.innerWidth - (queueOpen ? QUEUE_PANEL_WIDTH : 0)) / 2
       const vertical = event.clientY < window.innerHeight / 2 ? 'top' : 'bottom'
       const horizontal = event.clientX < contentMidX ? 'left' : 'right'
       setLayout({ docked: false, corner: `${vertical}-${horizontal}` as EmbedCorner })
     },
-    [drag, setLayout, studioOpen]
+    [drag, setLayout, queueOpen]
   )
 
   return (

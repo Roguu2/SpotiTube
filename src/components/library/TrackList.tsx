@@ -1,10 +1,11 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { Clock3, Play, X } from 'lucide-react'
 import { artistLine, type UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { EqualizerBars } from '@/components/ui/EqualizerBars'
 import { AddToHybridMenu } from './AddToHybridMenu'
+import { TrackQueueMenu } from './TrackQueueMenu'
 import { usePlayerStore, type QueueContext } from '@/store/usePlayerStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useLibraryStore } from '@/store/useLibraryStore'
@@ -29,7 +30,7 @@ export function TrackList({ tracks, context, hybridPlaylistId, compact = false }
       {!compact && (
         <div
           role="row"
-          className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,0.7fr)_4.5rem_4.5rem] items-center gap-3 border-b border-white/6 px-3 pb-2 text-[11px] font-medium tracking-wider text-zinc-500 uppercase"
+          className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,0.7fr)_4.5rem_6.5rem] items-center gap-3 border-b border-white/6 px-3 pb-2 text-[11px] font-medium tracking-wider text-zinc-500 uppercase"
         >
           <span className="text-right">#</span>
           <span>Title</span>
@@ -80,19 +81,25 @@ const TrackRow = memo(function TrackRow({
   onRemove,
   hybridPlaylistId
 }: TrackRowProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
   return (
     <div
       role="row"
       tabIndex={0}
       onDoubleClick={onPlay}
       onKeyDown={(e) => e.key === 'Enter' && onPlay()}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        setMenuOpen(true)
+      }}
       // Cheap virtualisation: skip layout/paint for off-screen rows in long playlists.
       style={{ contentVisibility: 'auto', containIntrinsicSize: compact ? 'auto 52px' : 'auto 56px' }}
       className={cx(
         'group grid items-center gap-3 rounded-lg px-3 outline-none transition-colors hover:bg-white/5 focus-visible:bg-white/8',
         compact
-          ? 'grid-cols-[minmax(0,1fr)_4rem_3.5rem] py-1.5'
-          : 'grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,0.7fr)_4.5rem_4.5rem] py-2',
+          ? 'grid-cols-[minmax(0,1fr)_3.5rem_4rem] py-1.5'
+          : 'grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,0.7fr)_4.5rem_6.5rem] py-2',
         active && 'bg-white/[0.07]'
       )}
     >
@@ -150,7 +157,14 @@ const TrackRow = memo(function TrackRow({
         {formatDurationMs(track.durationMs)}
       </span>
 
-      <span role="cell" className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <span
+        role="cell"
+        className={cx(
+          'flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
+          menuOpen && 'opacity-100'
+        )}
+      >
+        <TrackQueueMenu track={track} onPlayNow={onPlay} open={menuOpen} onOpenChange={setMenuOpen} />
         <AddToHybridMenu tracks={[track]} excludePlaylistId={hybridPlaylistId} />
         {onRemove && (
           <button

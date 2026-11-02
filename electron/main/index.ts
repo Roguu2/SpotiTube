@@ -12,7 +12,13 @@ import { StreamResolver } from './services/streamResolver'
 import { TrackMatcher } from './services/trackMatcher'
 import { StreamProxy } from './services/streamProxy'
 import { ProviderRegistry } from './services/ProviderRegistry'
-import { AppTray, registerMediaKeys, unregisterMediaKeys } from './services/media'
+import {
+  AppTray,
+  TaskbarControls,
+  registerMediaKeys,
+  startNowPlayingBridge,
+  unregisterMediaKeys
+} from './services/media'
 import { SpotifyAuth } from './providers/spotify/SpotifyAuth'
 import { SpotifyProvider } from './providers/spotify/SpotifyProvider'
 import { YouTubeMusicProvider } from './providers/ytmusic/YouTubeMusicProvider'
@@ -23,11 +29,13 @@ const APP_ID = 'com.spotitube.app'
 
 let mainWindow: BrowserWindow | null = null
 let tray: AppTray | null = null
+let taskbar: TaskbarControls | null = null
 let isQuitting = false
 
 function showMainWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
     mainWindow = createMainWindow()
+    taskbar?.attach(mainWindow)
     mainWindow.on('close', (event) => {
       if (!isQuitting && getSettings().closeToTray) {
         event.preventDefault()
@@ -90,6 +98,8 @@ async function bootstrap(): Promise<void> {
   registerUpdateIpc(updates)
   updates.start()
   registerMediaKeys()
+  startNowPlayingBridge()
+  taskbar = new TaskbarControls()
 
   tray = new AppTray({
     showWindow: showMainWindow,
@@ -104,6 +114,7 @@ async function bootstrap(): Promise<void> {
     updates.stop()
     proxy.stop()
     tray?.destroy()
+    taskbar?.destroy()
   })
 
   showMainWindow()

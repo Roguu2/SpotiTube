@@ -8,7 +8,7 @@ import { PlaylistView } from './components/library/PlaylistView'
 import { SearchView } from './components/library/SearchView'
 import { PlayerBar } from './components/player/PlayerBar'
 import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
-import { AudioStudio } from './components/studio/AudioStudio'
+import { QueuePanel } from './components/queue/QueuePanel'
 import { SettingsModal } from './components/settings/SettingsModal'
 import { Toasts } from './components/ui/Toasts'
 import { useAppBootstrap } from './hooks/useAppBootstrap'
@@ -21,7 +21,7 @@ export function App() {
   useKeyboardShortcuts()
 
   const appInfo = useSettingsStore((s) => s.appInfo)
-  const studioOpen = useSettingsStore((s) => s.studioOpen)
+  const queueOpen = useSettingsStore((s) => s.queueOpen)
   const view = useLibraryStore((s) => s.view)
   const mainRef = useRef<HTMLElement>(null)
 
@@ -47,7 +47,7 @@ export function App() {
           {view.kind === 'playlist' && <PlaylistView key={view.playlistId} playlistId={view.playlistId} />}
           {view.kind === 'search' && <SearchView />}
         </main>
-        <AnimatePresence initial={false}>{studioOpen && <AudioStudio key="studio" />}</AnimatePresence>
+        <AnimatePresence initial={false}>{queueOpen && <QueuePanel key="queue" />}</AnimatePresence>
       </div>
       <PlayerBar />
       <EmbedMiniPlayer />

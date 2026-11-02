@@ -5,11 +5,11 @@
 <h1 align="center">SpotiTube</h1>
 
 <p align="center">
-  One desktop player for <b>Spotify</b> and <b>YouTube Music</b> — with a real-time DSP studio.<br/>
-  Electron · React 19 · TypeScript · Web Audio API
+  One desktop player for <b>Spotify</b> and <b>YouTube Music</b> — with a queue you control.<br/>
+  Electron · React 19 · TypeScript
 </p>
 
-![Unified library with the Audio Studio open](docs/screenshots/library.png)
+![Unified library with the queue open](docs/screenshots/library.png)
 
 ## Features
 
@@ -19,24 +19,20 @@
 - **Hybrid playlists** — mix tracks from both services into local SpotiTube playlists.
 - **Side-by-side search** across both catalogs.
 - **Plays everything through YouTube Music** — Spotify tracks are matched to the best YouTube Music upload
-  automatically; the **stream source picker** lets you swap to a live, remix, slowed or other version and pin it.
-  See [How playback works](#how-playback-works) for the two playback modes.
-- **Audio Studio** (real-time Web Audio DSP, available with direct streams):
-  - speed 0.5–2.0× — time-stretched, or *linked* tape-style where pitch follows speed
-  - independent pitch shift ±12 semitones (AudioWorklet)
-  - 10-band EQ with built-in presets (Flat, Bass Boost, Vocal, Electronic, …) and your own
-  - convolution reverb with a generated impulse (mix, decay, pre-delay, damping)
-  - one-click **Nightcore** and **Slowed + Reverb**
-  - **A-B looping**, pre-amp and a brickwall limiter
-  - **per-track memory**: EQ, speed, pitch, reverb and loop points are remembered for every track
-- **Desktop integration** — frameless window with native controls (Windows) or inset traffic lights (macOS), media
-  keys, OS media overlay (MediaSession), system tray with transport controls, optional close-to-tray.
+  automatically; **Change version** (in the queue) swaps to a live, remix, slowed or other version and pins it.
+  See [How playback works](#how-playback-works).
+- **Queue** — see what's playing and what's next; **Play next** / **Add to queue** on any track (right-click or ⋯),
+  drag & drop or `Alt+↑/↓` to reorder, remove, clear, or jump to any entry. Queued tracks play before the rest of the
+  playlist, and shuffle leaves them in place.
+- **Desktop integration** — frameless window with native controls (Windows) or inset traffic lights (macOS);
+  previous / play-pause / next buttons on the **taskbar thumbnail** (Windows) or in the **Dock menu** (macOS); the
+  current song in the window title; media keys, OS media overlay (MediaSession), tray controls, optional close-to-tray.
 - **Works out of the box** — sample Spotify and YouTube Music playlists stream real recordings before you connect any
   account; a built-in synthesizer covers the case where no stream can be resolved (e.g. offline).
 
-| Split view | Audio Studio |
+| Split view | Queue |
 | --- | --- |
-| ![Split view](docs/screenshots/split-view.png) | ![Audio Studio](docs/screenshots/audio-studio.png) |
+| ![Split view](docs/screenshots/split-view.png) | ![Queue](docs/screenshots/queue.png) |
 
 ## Getting started
 
@@ -103,16 +99,14 @@ picks one of two modes per track, automatically:
 
 | Mode | When | What you get |
 | --- | --- | --- |
-| **Direct stream** | YouTube serves the complete audio stream | Full Audio Studio: EQ, pitch, reverb, Nightcore / Slowed, spectrum |
-| **YouTube player** | YouTube serves only part of the stream | Complete playback through YouTube's official embedded player, shown in a mini-player. Speed, volume, seeking, A-B loops and version selection work; EQ, pitch and reverb are paused |
+| **Direct stream** | YouTube serves the complete audio stream | Played locally through the Web Audio engine (no visible player) |
+| **YouTube player** | YouTube serves only part of the stream | Complete playback through YouTube's official embedded player, shown in a mini-player you can make compact, move to any corner or dock in the sidebar |
 
 YouTube currently serves only the first ~1 MB (about a minute) of a direct stream to apps without a proof-of-origin
 token. SpotiTube does not try to generate such tokens or otherwise get around YouTube's protections. It checks once
 whether complete streams are available and otherwise uses the official player, so tracks always play to the end
 instead of going silent. If a direct stream is cut off mid-song, playback continues in the official player at the
 same position.
-
-Your DSP settings are kept per track and apply again whenever a direct stream is available.
 
 ### Optional: yt-dlp
 
@@ -129,10 +123,9 @@ When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.
 | `↑` / `↓` | Volume up / down |
 | `M` | Mute |
 | `Ctrl/Cmd + F` | Search |
-| `Ctrl/Cmd + E` | Toggle Audio Studio |
+| `Ctrl/Cmd + E` | Toggle the queue |
 | `Ctrl/Cmd + ,` | Settings |
 
-Double-click any slider in the Audio Studio to reset it.
 
 ## Releases and CI
 
@@ -276,10 +269,9 @@ holds per-track audio settings and custom EQ presets. Deleting the folder resets
 | *“INVALID_CLIENT: Invalid redirect URI”* | The dashboard redirect URI must be exactly `http://127.0.0.1:43821/callback`. |
 | *“Port 43821 is in use”* | Another app holds the OAuth callback port; close it and retry. |
 | Spotify connects but shows no playlists | Add your account under **User Management** in the Spotify dashboard (development mode). |
-| A track plays the *synth preview* | No matching upload was found. Pick a version in **Audio Studio → Stream source**. |
-| EQ / pitch / reverb are greyed out | The track is playing through the official YouTube player; see [How playback works](#how-playback-works). |
-| “Uploader does not allow this video in other apps” | SpotiTube tries other uploads automatically; you can also pick one in **Stream source**. |
-| Wrong version auto-matched | Choose the right one in **Stream source**; it is pinned for that track from then on. |
+| A track plays the *synth preview* | No matching upload was found. Open the queue and use **Change version** under the playing track. |
+| “Uploader does not allow this video in other apps” | SpotiTube tries other uploads automatically; you can also pick one with **Change version** in the queue. |
+| Wrong version auto-matched | Use **Change version** in the queue; your choice is pinned for that track from then on. |
 
 ## Disclaimer
 

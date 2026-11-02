@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import {
-  Gauge,
+  ListMusic,
   LoaderCircle,
   Pause,
   Pin,
@@ -10,27 +9,21 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
-  SlidersHorizontal,
   Volume1,
   Volume2,
   VolumeX
 } from 'lucide-react'
-import { activeDspPreset, DSP_PRESETS, PREAMP_LIMIT_DB, type DspPresetId } from '@core/dsp'
 import { artistLine } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Slider } from '@/components/ui/Slider'
-import { Menu } from '@/components/ui/Menu'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
 import { SeekBar } from './SeekBar'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useLibraryStore } from '@/store/useLibraryStore'
-import { cx, formatSigned } from '@/lib/format'
-
-const QUICK_PRESETS: DspPresetId[] = ['normal', 'nightcore', 'slowed-reverb']
 
 export function PlayerBar() {
   return (
@@ -52,7 +45,7 @@ function NowPlaying() {
   const error = usePlayerStore((s) => s.error)
   const context = usePlayerStore((s) => s.context)
   const navigate = useLibraryStore((s) => s.navigate)
-  const openStudio = useSettingsStore((s) => s.toggleStudio)
+  const openQueue = useSettingsStore((s) => s.toggleQueue)
 
   if (!current) {
     return <div className="text-[13px] text-zinc-600">Pick a track to start listening.</div>
@@ -88,7 +81,7 @@ function NowPlaying() {
           ) : showSource ? (
             <button
               type="button"
-              onClick={() => openStudio(true)}
+              onClick={() => openQueue(true)}
               title={`Audio from: ${source?.candidate?.title} — click to choose another version`}
               className="flex min-w-0 items-center gap-1 truncate text-[11px] text-zinc-500 hover:text-zinc-300"
             >
@@ -161,83 +154,29 @@ function Transport() {
 }
 
 function RightControls() {
-  const dsp = useAudioEngineStore((s) => s.dsp)
   const volume = useAudioEngineStore((s) => s.volume)
   const muted = useAudioEngineStore((s) => s.muted)
   const hydrated = useAudioEngineStore((s) => s.hydrated)
-  const embedMode = useAudioEngineStore((s) => s.backend === 'embed')
   const setVolume = useAudioEngineStore((s) => s.setVolume)
   const toggleMute = useAudioEngineStore((s) => s.toggleMute)
-  const setPreamp = useAudioEngineStore((s) => s.setPreamp)
-  const applyDspPreset = useAudioEngineStore((s) => s.applyDspPreset)
-  const studioOpen = useSettingsStore((s) => s.studioOpen)
-  const toggleStudio = useSettingsStore((s) => s.toggleStudio)
+  const queueOpen = useSettingsStore((s) => s.queueOpen)
+  const toggleQueue = useSettingsStore((s) => s.toggleQueue)
+  const upcoming = usePlayerStore((s) => (s.current ? s.order.length - s.position - 1 : 0))
 
-  const [preampAnchor, setPreampAnchor] = useState<HTMLButtonElement | null>(null)
-  const [preampOpen, setPreampOpen] = useState(false)
-
-  const activePreset = activeDspPreset(dsp)
   const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
 
   return (
     <div className="flex items-center justify-end gap-2">
-      <div role="radiogroup" aria-label="Quick DSP preset" className="flex rounded-full bg-white/6 p-0.5 ring-1 ring-white/8">
-        {QUICK_PRESETS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="radio"
-            aria-checked={activePreset === id}
-            disabled={!hydrated || (embedMode && id !== 'normal')}
-            title={embedMode && id !== 'normal' ? 'Needs a direct stream — not available in the YouTube player' : DSP_PRESETS[id].label}
-            onClick={() => applyDspPreset(id)}
-            className={cx(
-              'rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
-              activePreset === id
-                ? id === 'nightcore'
-                  ? 'bg-fuchsia-500/25 text-fuchsia-200'
-                  : id === 'slowed-reverb'
-                    ? 'bg-indigo-500/25 text-indigo-200'
-                    : 'bg-white/12 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-200'
-            )}
-          >
-            {id === 'slowed-reverb' ? 'Slowed' : DSP_PRESETS[id].label}
-          </button>
-        ))}
+      <div className="relative">
+        <IconButton label="Queue" active={queueOpen} onClick={() => toggleQueue()}>
+          <ListMusic size={17} />
+        </IconButton>
+        {upcoming > 0 && !queueOpen && (
+          <span className="pointer-events-none absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-zinc-200 px-1 text-center text-[9px] leading-4 font-bold text-zinc-900 tabular-nums">
+            {upcoming > 99 ? '99+' : upcoming}
+          </span>
+        )}
       </div>
-
-      <IconButton label="Audio Studio" active={studioOpen} onClick={() => toggleStudio()}>
-        <SlidersHorizontal size={17} />
-      </IconButton>
-
-      <IconButton
-        ref={setPreampAnchor}
-        label={`Pre-amp ${formatSigned(dsp.preampDb, 1, ' dB')}`}
-        active={dsp.preampDb !== 0}
-        onClick={() => setPreampOpen((o) => !o)}
-        disabled={!hydrated || embedMode}
-      >
-        <Gauge size={17} />
-      </IconButton>
-      <Menu anchor={preampAnchor} open={preampOpen} onClose={() => setPreampOpen(false)} placement="above" className="w-56 p-3">
-        <div className="mb-2 flex items-center justify-between text-[12px]">
-          <span className="font-medium text-zinc-300">Pre-amp gain</span>
-          <span className="text-zinc-400 tabular-nums">{formatSigned(dsp.preampDb, 1, ' dB')}</span>
-        </div>
-        <Slider
-          label="Pre-amp gain"
-          min={-PREAMP_LIMIT_DB}
-          max={PREAMP_LIMIT_DB}
-          step={0.5}
-          value={dsp.preampDb}
-          bipolar
-          resetValue={0}
-          onChange={setPreamp}
-          valueText={formatSigned(dsp.preampDb, 1, ' dB')}
-        />
-        <p className="mt-2 text-[11px] text-zinc-500">A limiter after the EQ prevents clipping. Double-click to reset.</p>
-      </Menu>
 
       <IconButton label={muted ? 'Unmute' : 'Mute'} onClick={toggleMute} disabled={!hydrated}>
         <VolumeIcon size={17} />

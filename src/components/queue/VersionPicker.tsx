@@ -9,8 +9,8 @@ import { cx, formatDurationMs } from '@/lib/format'
 
 const QUICK_QUERIES = ['live', 'remix', 'slowed', 'sped up', 'acoustic', 'instrumental']
 
-/** Lets the user swap the YouTube upload that provides a track's audio. */
-export function StreamSourcePicker() {
+/** Lets the user swap the YouTube upload that provides the current track's audio. */
+export function VersionPicker() {
   const current = usePlayerStore((s) => s.current)
   const source = usePlayerStore((s) => s.source)
   const setStreamOverride = usePlayerStore((s) => s.setStreamOverride)

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { ArrowLeft, Ellipsis, ListPlus, LoaderCircle, Pencil, Play, Shuffle, Trash } from 'lucide-react'
+import { ArrowLeft, Ellipsis, ListEnd, ListPlus, LoaderCircle, Pencil, Play, Shuffle, Trash } from 'lucide-react'
 import { Artwork } from '@/components/ui/Artwork'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { Button, IconButton } from '@/components/ui/IconButton'
@@ -20,6 +20,7 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
   const playQueue = usePlayerStore((s) => s.playQueue)
   const shuffleOn = usePlayerStore((s) => s.shuffle)
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle)
+  const addToQueue = usePlayerStore((s) => s.addToQueue)
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLButtonElement | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -106,6 +107,9 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
         </button>
         <Button variant="secondary" disabled={!tracks.length} onClick={() => play(true)}>
           <Shuffle size={15} /> Shuffle
+        </Button>
+        <Button variant="ghost" disabled={!tracks.length} onClick={() => void addToQueue(tracks)}>
+          <ListEnd size={15} /> Add to queue
         </Button>
         {!isHybrid && tracks.length > 0 && (
           <AddToHybridMenu

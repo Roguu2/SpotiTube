@@ -14,10 +14,13 @@ export interface QueueContext {
 }
 
 interface PlayerState {
+  /** Every track known to this queue: the context's tracks plus anything queued by the user. */
   queue: UnifiedTrack[]
-  /** Play order as indices into `queue` (identity unless shuffled). */
+  /** Play order as indices into `queue`; entries after `position` are "up next". */
   order: number[]
   position: number
+  /** Indices into `queue` of tracks the user queued themselves that have not played yet. */
+  manual: number[]
   context: QueueContext | null
   current: UnifiedTrack | null
   source: PlaybackSource | null
@@ -37,6 +40,19 @@ interface PlayerState {
   handleEnded(): Promise<void>
   /** Keeps the current track going after a mid-playback failure (stream cut off, upload refused). */
   recoverPlayback(): Promise<void>
+
+  /** Queues tracks to play right after the current one. */
+  playNext(tracks: UnifiedTrack[]): Promise<void>
+  /** Queues tracks after anything already queued, ahead of the rest of the playlist. */
+  addToQueue(tracks: UnifiedTrack[]): Promise<void>
+  /** Removes an upcoming entry (by position in the play order). */
+  removeFromQueue(orderPosition: number): void
+  /** Moves an upcoming entry to another upcoming position. */
+  moveInQueue(from: number, to: number): void
+  /** Clears the tracks the user queued, or everything still to come. */
+  clearQueue(scope: 'queued' | 'all'): void
+  /** Jumps to an upcoming entry and plays it. */
+  playFromQueue(orderPosition: number): Promise<void>
 }
 
 /** After this many unplayable tracks in a row, stop auto-advancing. */
@@ -49,13 +65,22 @@ let playToken = 0
 let consecutiveFailures = 0
 let recovering = false
 
-function shuffled(length: number, first: number): number[] {
-  const rest = Array.from({ length }, (_, i) => i).filter((i) => i !== first)
-  for (let i = rest.length - 1; i > 0; i--) {
+function shuffleInPlace<T>(items: T[]): T[] {
+  for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[rest[i], rest[j]] = [rest[j], rest[i]]
+    ;[items[i], items[j]] = [items[j], items[i]]
   }
-  return [first, ...rest]
+  return items
+}
+
+function shuffled(length: number, first: number): number[] {
+  return [first, ...shuffleInPlace(Array.from({ length }, (_, i) => i).filter((i) => i !== first))]
+}
+
+/** Restores playlist order for unplayed tracks: those after `anchor` first, then the ones before it. */
+function unshuffled(indices: number[], anchor: number): number[] {
+  const sorted = [...indices].sort((a, b) => a - b)
+  return [...sorted.filter((i) => i > anchor), ...sorted.filter((i) => i < anchor)]
 }
 
 function errorText(error: unknown): string {
@@ -135,7 +160,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     if (!track) return
 
     const token = ++playToken
-    set({ position, current: track, status: 'resolving', error: null, source: null })
+    // A queued track that starts playing is no longer "queued".
+    const manual = get().manual.filter((index) => index !== order[position])
+    set({ position, manual, current: track, status: 'resolving', error: null, source: null })
     updateMediaSession(track)
 
     try {
@@ -174,6 +201,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     queue: [],
     order: [],
     position: 0,
+    manual: [],
     context: null,
     current: null,
     source: null,
@@ -187,7 +215,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const index = Math.min(Math.max(0, startIndex), tracks.length - 1)
       const order = get().shuffle ? shuffled(tracks.length, index) : tracks.map((_, i) => i)
       consecutiveFailures = 0
-      set({ queue: tracks, order, context })
+      set({ queue: tracks, order, manual: [], context })
       await start(get().shuffle ? 0 : index)
     },
 
@@ -224,13 +252,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     toggleShuffle() {
-      const { shuffle, queue } = get()
-      const index = currentIndex()
-      if (!shuffle) {
-        set({ shuffle: true, order: shuffled(queue.length, Math.max(0, index)), position: 0 })
-      } else {
-        set({ shuffle: false, order: queue.map((_, i) => i), position: Math.max(0, index) })
-      }
+      const { shuffle, order, position, manual } = get()
+      // History and tracks the user queued keep their place; only the rest of the playlist reorders.
+      const head = order.slice(0, position + 1)
+      const upcoming = order.slice(position + 1)
+      const queued = upcoming.filter((i) => manual.includes(i))
+      const rest = upcoming.filter((i) => !manual.includes(i))
+      const reordered = shuffle ? unshuffled(rest, currentIndex()) : shuffleInPlace([...rest])
+      set({ shuffle: !shuffle, order: [...head, ...queued, ...reordered] })
     },
 
     cycleRepeat() {
@@ -283,6 +312,81 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       } finally {
         recovering = false
       }
+    },
+
+    async playNext(tracks) {
+      if (!tracks.length) return
+      if (!get().current) {
+        await get().playQueue(tracks, 0, { label: 'Queue' })
+        return
+      }
+      insertIntoQueue(tracks, get().position + 1)
+      toast.success(tracks.length === 1 ? `“${tracks[0].title}” plays next` : `${tracks.length} tracks play next`)
+    },
+
+    async addToQueue(tracks) {
+      if (!tracks.length) return
+      if (!get().current) {
+        await get().playQueue(tracks, 0, { label: 'Queue' })
+        return
+      }
+      // After the last track the user queued, ahead of the rest of the playlist.
+      const { order, position, manual } = get()
+      let at = position + 1
+      for (let p = position + 1; p < order.length; p++) {
+        if (manual.includes(order[p])) at = p + 1
+      }
+      insertIntoQueue(tracks, at)
+      toast.success(tracks.length === 1 ? `Added “${tracks[0].title}” to the queue` : `Added ${tracks.length} tracks to the queue`)
+    },
+
+    removeFromQueue(orderPosition) {
+      const { order, position, manual } = get()
+      if (orderPosition <= position || orderPosition >= order.length) return
+      const removed = order[orderPosition]
+      set({
+        order: order.filter((_, p) => p !== orderPosition),
+        manual: manual.filter((i) => i !== removed)
+      })
+    },
+
+    moveInQueue(from, to) {
+      const { order, position } = get()
+      // Only upcoming entries can move, and only among upcoming positions.
+      if (from <= position || from >= order.length || from === to) return
+      const target = Math.min(Math.max(to, position + 1), order.length - 1)
+      const next = [...order]
+      const [entry] = next.splice(from, 1)
+      next.splice(target, 0, entry)
+      set({ order: next })
+    },
+
+    clearQueue(scope) {
+      const { order, position, manual } = get()
+      if (scope === 'all') {
+        set({ order: order.slice(0, position + 1), manual: [] })
+        return
+      }
+      const head = order.slice(0, position + 1)
+      const rest = order.slice(position + 1).filter((i) => !manual.includes(i))
+      set({ order: [...head, ...rest], manual: [] })
+    },
+
+    async playFromQueue(orderPosition) {
+      if (orderPosition <= get().position || orderPosition >= get().order.length) return
+      consecutiveFailures = 0
+      await start(orderPosition)
     }
+  }
+
+  function insertIntoQueue(tracks: UnifiedTrack[], at: number): void {
+    const { queue, order, manual } = get()
+    const indices = tracks.map((_, i) => queue.length + i)
+    set({
+      queue: [...queue, ...tracks],
+      order: [...order.slice(0, at), ...indices, ...order.slice(at)],
+      manual: [...manual, ...indices]
+    })
+    prefetchNext()
   }
 })

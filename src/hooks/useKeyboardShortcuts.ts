@@ -28,7 +28,7 @@ export function useKeyboardShortcuts(): void {
       }
       if (mod && event.key.toLowerCase() === 'e') {
         event.preventDefault()
-        useSettingsStore.getState().toggleStudio()
+        useSettingsStore.getState().toggleQueue()
         return
       }
       if (mod && event.key === ',') {
