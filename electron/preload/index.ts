@@ -1,5 +1,22 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { IpcChannels, type ElectronAPI } from '@core/ipc'
+import { IpcChannels, type ElectronAPI, type IpcChannel, type IpcResult, type MediaCommand } from '@core/ipc'
+
+/** Invokes a main-process handler and unwraps its {@link IpcResult} envelope. */
+async function invoke<T>(channel: IpcChannel, ...args: unknown[]): Promise<T> {
+  const result = (await ipcRenderer.invoke(channel, ...args)) as IpcResult<T>
+  if (result.ok) return result.data
+  const error = new Error(result.error.message)
+  error.name = result.error.code
+  throw error
+}
+
+function subscribe<T extends unknown[]>(channel: IpcChannel, listener: (...args: T) => void): () => void {
+  const handler = (_event: IpcRendererEvent, ...args: unknown[]): void => listener(...(args as T))
+  ipcRenderer.on(channel, handler)
+  return () => {
+    ipcRenderer.removeListener(channel, handler)
+  }
+}
 
 const electronAPI: ElectronAPI = {
   app: {
@@ -10,13 +27,40 @@ const electronAPI: ElectronAPI = {
     toggleMaximize: () => ipcRenderer.send(IpcChannels.windowToggleMaximize),
     close: () => ipcRenderer.send(IpcChannels.windowClose),
     isMaximized: () => ipcRenderer.invoke(IpcChannels.windowIsMaximized),
-    onMaximizedChange: (listener) => {
-      const handler = (_event: IpcRendererEvent, maximized: boolean): void => listener(maximized)
-      ipcRenderer.on(IpcChannels.windowMaximizedChanged, handler)
-      return () => {
-        ipcRenderer.removeListener(IpcChannels.windowMaximizedChanged, handler)
-      }
-    }
+    onMaximizedChange: (listener) => subscribe<[boolean]>(IpcChannels.windowMaximizedChanged, listener)
+  },
+  library: {
+    getPlaylists: () => invoke(IpcChannels.libraryGetPlaylists),
+    getPlaylistTracks: (playlistId) => invoke(IpcChannels.libraryGetPlaylistTracks, playlistId),
+    search: (query) => invoke(IpcChannels.librarySearch, query),
+    onChanged: (listener) => subscribe<[]>(IpcChannels.libraryChanged, listener)
+  },
+  hybrid: {
+    create: (name, description) => invoke(IpcChannels.hybridCreate, name, description),
+    rename: (playlistId, name) => invoke(IpcChannels.hybridRename, playlistId, name),
+    delete: (playlistId) => invoke(IpcChannels.hybridDelete, playlistId),
+    addTracks: (playlistId, tracks) => invoke(IpcChannels.hybridAddTracks, playlistId, tracks),
+    removeTracks: (playlistId, trackIds) => invoke(IpcChannels.hybridRemoveTracks, playlistId, trackIds)
+  },
+  stream: {
+    getPlaybackSource: (track) => invoke(IpcChannels.streamGetPlaybackSource, track),
+    getCandidates: (track, query) => invoke(IpcChannels.streamGetCandidates, track, query),
+    setOverride: (track, candidate) => invoke(IpcChannels.streamSetOverride, track, candidate)
+  },
+  auth: {
+    getStatus: () => invoke(IpcChannels.authGetStatus),
+    connectSpotify: () => invoke(IpcChannels.authConnectSpotify),
+    disconnectSpotify: () => invoke(IpcChannels.authDisconnectSpotify),
+    connectYouTubeMusic: (cookie) => invoke(IpcChannels.authConnectYouTubeMusic, cookie),
+    disconnectYouTubeMusic: () => invoke(IpcChannels.authDisconnectYouTubeMusic)
+  },
+  settings: {
+    get: () => invoke(IpcChannels.settingsGet),
+    update: (patch) => invoke(IpcChannels.settingsUpdate, patch)
+  },
+  media: {
+    onCommand: (listener) => subscribe<[MediaCommand]>(IpcChannels.mediaCommand, listener),
+    updateNowPlaying: (info) => ipcRenderer.send(IpcChannels.mediaNowPlaying, info)
   }
 }
 

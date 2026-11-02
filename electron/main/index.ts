@@ -2,12 +2,33 @@ import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createMainWindow } from './window'
 import { registerWindowIpc } from './ipc/window'
+import { registerLibraryIpc } from './ipc/library'
+import { getSettings } from './services/store'
+import { YouTubeClient } from './services/youtube'
+import { StreamResolver } from './services/streamResolver'
+import { TrackMatcher } from './services/trackMatcher'
+import { StreamProxy } from './services/streamProxy'
+import { ProviderRegistry } from './services/ProviderRegistry'
+import { AppTray, registerMediaKeys, unregisterMediaKeys } from './services/media'
+import { SpotifyAuth } from './providers/spotify/SpotifyAuth'
+import { SpotifyProvider } from './providers/spotify/SpotifyProvider'
+import { YouTubeMusicProvider } from './providers/ytmusic/YouTubeMusicProvider'
+import { HybridProvider } from './providers/hybrid/HybridProvider'
+import { DemoProvider } from './providers/demo/DemoProvider'
 
 let mainWindow: BrowserWindow | null = null
+let tray: AppTray | null = null
+let isQuitting = false
 
 function showMainWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
     mainWindow = createMainWindow()
+    mainWindow.on('close', (event) => {
+      if (!isQuitting && getSettings().closeToTray) {
+        event.preventDefault()
+        mainWindow?.hide()
+      }
+    })
     mainWindow.on('closed', () => {
       mainWindow = null
     })
@@ -18,20 +39,65 @@ function showMainWindow(): void {
   mainWindow.focus()
 }
 
+async function bootstrap(): Promise<void> {
+  const youtube = new YouTubeClient()
+  const resolver = new StreamResolver(youtube)
+  const matcher = new TrackMatcher(youtube)
+  const proxy = new StreamProxy()
+  await proxy.start()
+
+  const spotifyAuth = new SpotifyAuth(() => getSettings().spotifyClientId)
+  const spotify = new SpotifyProvider(spotifyAuth, matcher, resolver)
+  const ytmusic = new YouTubeMusicProvider(youtube, resolver)
+  const demo = new DemoProvider(matcher, resolver)
+
+  // Hybrid tracks keep their original provider, so streaming routes back through the registry.
+  let registry: ProviderRegistry | null = null
+  const hybrid = new HybridProvider((track) => {
+    if (!registry) throw new Error('Provider registry is not ready')
+    return registry.provider(track.providerId).resolveStreamUrl(track)
+  })
+  registry = new ProviderRegistry({ spotify, ytmusic, hybrid, demo }, matcher, resolver, proxy)
+
+  registerWindowIpc()
+  registerLibraryIpc({ registry, spotifyAuth, spotify, hybrid, youtube })
+  registerMediaKeys()
+
+  tray = new AppTray({
+    showWindow: showMainWindow,
+    quit: () => {
+      isQuitting = true
+      app.quit()
+    }
+  })
+
+  app.on('will-quit', () => {
+    unregisterMediaKeys()
+    proxy.stop()
+    tray?.destroy()
+  })
+
+  showMainWindow()
+
+  // Warm up the anonymous InnerTube session so the first play/search is fast.
+  void youtube.getAnonymous().catch(() => undefined)
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', showMainWindow)
+  app.on('before-quit', () => {
+    isQuitting = true
+  })
 
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     electronApp.setAppUserModelId('com.spotitube.app')
 
     // F12 toggles DevTools in development; Ctrl/Cmd+R reload is disabled in production.
     app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
-    registerWindowIpc()
-    showMainWindow()
-
+    await bootstrap()
     app.on('activate', showMainWindow)
   })
 
