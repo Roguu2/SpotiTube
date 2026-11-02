@@ -9,8 +9,39 @@ permissions:
   contents: write
 
 jobs:
+  # Create the draft once, up front. When each platform job created its own,
+  # parallel runs raced and produced duplicate drafts with assets split between them.
+  draft:
+    name: Prepare draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # electron-builder publishes to the release named after package.json's version;
+      # a mismatched tag would make it create yet another release.
+      - name: Check tag matches package.json version
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Create draft release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists"
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft \
+              --title "${GITHUB_REF_NAME#v}" --generate-notes
+          fi
+
   release:
     name: Release (${{ matrix.os }})
+    needs: draft
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
