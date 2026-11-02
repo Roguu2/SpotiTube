@@ -1,0 +1,49 @@
+appId: com.spotitube.app
+productName: SpotiTube
+copyright: Copyright © 2026 SpotiTube
+directories:
+  buildResources: build
+  output: release/${version}
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+asarUnpack:
+  - resources/**
+npmRebuild: false
+
+win:
+  executableName: SpotiTube
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  shortcutName: SpotiTube
+  uninstallDisplayName: SpotiTube
+  artifactName: ${productName}-${version}-Setup.${ext}
+
+mac:
+  category: public.app-category.music
+  hardenedRuntime: true
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
+  target:
+    - target: dmg
+      arch: [universal]
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+linux:
+  target: [AppImage]
+  category: Audio
+  maintainer: spotitube
+appImage:
+  artifactName: ${productName}-${version}.${ext}
+
+publish:
+  provider: github
+  releaseType: draft
