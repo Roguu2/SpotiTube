@@ -6,6 +6,7 @@ import { AmbientGlow } from './components/layout/AmbientGlow'
 import { LibraryView } from './components/library/LibraryView'
 import { PlaylistView } from './components/library/PlaylistView'
 import { SearchView } from './components/library/SearchView'
+import { HistoryView } from './components/library/HistoryView'
 import { PlayerBar } from './components/player/PlayerBar'
 import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
 import { QueuePanel } from './components/queue/QueuePanel'
@@ -13,12 +14,14 @@ import { SettingsModal } from './components/settings/SettingsModal'
 import { Toasts } from './components/ui/Toasts'
 import { useAppBootstrap } from './hooks/useAppBootstrap'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { usePlaybackPersistence } from './hooks/usePlaybackPersistence'
 import { useLibraryStore } from './store/useLibraryStore'
 import { useSettingsStore } from './store/useSettingsStore'
 
 export function App() {
   useAppBootstrap()
   useKeyboardShortcuts()
+  usePlaybackPersistence()
 
   const appInfo = useSettingsStore((s) => s.appInfo)
   const queueOpen = useSettingsStore((s) => s.queueOpen)
@@ -46,6 +49,7 @@ export function App() {
           {view.kind === 'library' && <LibraryView />}
           {view.kind === 'playlist' && <PlaylistView key={view.playlistId} playlistId={view.playlistId} />}
           {view.kind === 'search' && <SearchView />}
+          {view.kind === 'history' && <HistoryView />}
         </main>
         <AnimatePresence initial={false}>{queueOpen && <QueuePanel key="queue" />}</AnimatePresence>
       </div>

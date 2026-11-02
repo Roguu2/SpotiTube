@@ -53,7 +53,13 @@ export const IpcChannels = {
   updatesCheck: 'updates:check',
   updatesDownload: 'updates:download',
   updatesInstall: 'updates:install',
-  updatesStateChanged: 'updates:state-changed'
+  updatesStateChanged: 'updates:state-changed',
+
+  historyGet: 'history:get',
+  historyRecordPlay: 'history:record-play',
+  historyClear: 'history:clear',
+  historyGetSession: 'history:get-session',
+  historySaveSession: 'history:save-session'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -106,6 +112,35 @@ export interface AppSettings {
   syntheticFallback: boolean
   /** Check for, and download, updates in the background. */
   autoUpdate: boolean
+  /** Restore the queue and playback position from the previous run on launch. */
+  restoreSession: boolean
+}
+
+/** Where a play started from, as shown in the queue and in Recently played. */
+export interface PlayContext {
+  /** Playlist the queue came from, for "now playing" highlighting and navigation. */
+  playlistId?: string
+  label: string
+}
+
+export interface PlayRecord {
+  track: UnifiedTrack
+  playedAt: number
+  context?: PlayContext
+}
+
+/** Everything needed to pick up the queue where the previous run left off. */
+export interface PlaybackSession {
+  queue: UnifiedTrack[]
+  order: number[]
+  position: number
+  manual: number[]
+  context: PlayContext | null
+  shuffle: boolean
+  repeat: 'off' | 'all' | 'one'
+  /** Seconds into the current track. */
+  currentTime: number
+  savedAt: number
 }
 
 export type UpdateStatus =
@@ -205,5 +240,14 @@ export interface ElectronAPI {
     /** Quits, installs the downloaded update and relaunches. */
     install(): Promise<void>
     onStateChange(listener: (state: UpdateState) => void): Unsubscribe
+  }
+  history: {
+    /** Plays, newest first. */
+    get(): Promise<PlayRecord[]>
+    recordPlay(track: UnifiedTrack, context: PlayContext | null): Promise<void>
+    clear(): Promise<void>
+    getSession(): Promise<PlaybackSession | null>
+    /** `null` forgets the saved session. */
+    saveSession(session: PlaybackSession | null): Promise<void>
   }
 }

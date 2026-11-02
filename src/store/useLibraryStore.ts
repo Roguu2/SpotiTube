@@ -5,7 +5,7 @@ import { toast } from './useToastStore'
 
 export type LibraryFilter = 'all' | 'spotify' | 'ytmusic' | 'split'
 
-export type View = { kind: 'library' } | { kind: 'playlist'; playlistId: string } | { kind: 'search' }
+export type View = { kind: 'library' } | { kind: 'playlist'; playlistId: string } | { kind: 'search' } | { kind: 'history' }
 
 export interface TrackListState {
   tracks: UnifiedTrack[]

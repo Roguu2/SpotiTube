@@ -24,6 +24,10 @@
 - **Queue** — see what's playing and what's next; **Play next** / **Add to queue** on any track (right-click or ⋯),
   drag & drop or `Alt+↑/↓` to reorder, remove, clear, or jump to any entry. Queued tracks play before the rest of the
   playlist, and shuffle leaves them in place.
+- **Recently played** — every track you listen to for 30 s or more (or half of a shorter one), grouped by day, with
+  **Jump back in** cards for the playlists you played from. Clear it any time in Settings.
+- **Resume where you left off** — the queue, shuffle/repeat and the playing track come back on launch, paused at the
+  same spot. Drag the seek bar before pressing play to start somewhere else. Can be turned off in Settings.
 - **Desktop integration** — frameless window with native controls (Windows) or inset traffic lights (macOS);
   previous / play-pause / next buttons on the **taskbar thumbnail** (Windows) or in the **Dock menu** (macOS); the
   current song in the window title; media keys, OS media overlay (MediaSession), tray controls, optional close-to-tray.
@@ -190,13 +194,13 @@ sign, add `CSC_LINK` / `CSC_KEY_PASSWORD` (and Apple notarization credentials) a
 │        ├─ TrackMatcher ─ scores YT Music candidates for non-YT tracks        │
 │        ├─ StreamResolver ─ YTMUSIC → IOS → MWEB clients → yt-dlp, cached     │
 │        └─ StreamProxy ─ 127.0.0.1:<random>, CORS + byte ranges, auto-refresh │
-│  electron-store (settings, encrypted secrets, hybrid playlists, DSP profiles)│
+│  electron-store (settings, secrets, hybrid playlists, history, DSP profiles) │
 │  Tray · media keys · window controls                                         │
 └───────────────▲──────────────────────────────────────────────────────────────┘
                 │ typed IPC (contextBridge → window.electronAPI)
 ┌───────────────┴──────────── Renderer (React) ────────────────────────────────┐
 │  Zustand: useLibraryStore · usePlayerStore · useAudioEngineStore ·           │
-│           useSettingsStore                                                   │
+│           useSettingsStore · useHistoryStore                                 │
 │  AudioEngine (Web Audio graph, below)                                        │
 └──────────────────────────────────────────────────────────────────────────────┘
 
@@ -259,8 +263,8 @@ Everything is stored locally in the app's user-data directory:
 | Windows | `%APPDATA%\SpotiTube\` |
 | macOS | `~/Library/Application Support/SpotiTube/` |
 
-`spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `dsp-profiles.json`
-holds per-track audio settings and custom EQ presets. Deleting the folder resets the app.
+`spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
+the last 500 plays and the saved queue. `dsp-profiles.json` holds per-track audio settings and custom EQ presets. Deleting the folder resets the app.
 
 ## Troubleshooting
 

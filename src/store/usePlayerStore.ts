@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { PlayContext, PlaybackSession } from '@core/ipc'
 import { artistLine, type PlaybackSource, type StreamCandidate, type UnifiedTrack } from '@core/types'
 import { useAudioEngineStore } from './useAudioEngineStore'
 import { EmbedPlaybackError } from '@/audio/YouTubeEmbedPlayer'
@@ -7,11 +8,7 @@ import { toast } from './useToastStore'
 export type RepeatMode = 'off' | 'all' | 'one'
 export type PlayerStatus = 'idle' | 'resolving' | 'ready' | 'error'
 
-export interface QueueContext {
-  /** Playlist the queue came from, for "now playing" highlighting and navigation. */
-  playlistId?: string
-  label: string
-}
+export type QueueContext = PlayContext
 
 interface PlayerState {
   /** Every track known to this queue: the context's tracks plus anything queued by the user. */
@@ -28,7 +25,13 @@ interface PlayerState {
   error: string | null
   shuffle: boolean
   repeat: RepeatMode
+  /** Where the restored track picks up when play is pressed (status `idle` after a restore). */
+  resumeAt: number | null
 
+  /** Puts back the queue from the previous run, paused, without loading any audio. */
+  restoreSession(session: PlaybackSession): void
+  /** Moves the restored track's start position before it has been loaded. */
+  setResumeAt(seconds: number): void
   playQueue(tracks: UnifiedTrack[], startIndex: number, context: QueueContext): Promise<void>
   togglePlay(): Promise<void>
   next(auto?: boolean): Promise<void>
@@ -162,7 +165,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const token = ++playToken
     // A queued track that starts playing is no longer "queued".
     const manual = get().manual.filter((index) => index !== order[position])
-    set({ position, manual, current: track, status: 'resolving', error: null, source: null })
+    set({ position, manual, current: track, status: 'resolving', error: null, source: null, resumeAt: null })
     updateMediaSession(track)
 
     try {
@@ -209,6 +212,31 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     error: null,
     shuffle: false,
     repeat: 'off',
+    resumeAt: null,
+
+    restoreSession(session) {
+      const current = session.queue[session.order[session.position]]
+      if (!current) return
+      set({
+        queue: session.queue,
+        order: session.order,
+        position: session.position,
+        manual: session.manual,
+        context: session.context,
+        shuffle: session.shuffle,
+        repeat: session.repeat,
+        current,
+        source: null,
+        status: 'idle',
+        error: null,
+        resumeAt: session.currentTime
+      })
+      updateMediaSession(current)
+    },
+
+    setResumeAt(seconds) {
+      if (get().status === 'idle' && get().current) set({ resumeAt: Math.max(0, seconds) })
+    },
 
     async playQueue(tracks, startIndex, context) {
       if (!tracks.length) return
@@ -222,8 +250,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     async togglePlay() {
       const { current, status } = get()
       if (!current) return
-      if (status === 'error') {
-        await start(get().position)
+      if (status === 'error' || status === 'idle') {
+        // `idle` with a track means a restored session that has not been loaded yet.
+        await start(get().position, get().resumeAt ?? undefined)
         return
       }
       await useAudioEngineStore.getState().toggle()

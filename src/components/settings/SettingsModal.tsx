@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/IconButton'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useUpdateStore } from '@/store/useUpdateStore'
+import { useHistoryStore } from '@/store/useHistoryStore'
 import { cx } from '@/lib/format'
 
 export function SettingsModal() {
@@ -313,6 +314,8 @@ function UpdatesSection() {
 function PlaybackSection() {
   const settings = useSettingsStore((s) => s.settings)
   const update = useSettingsStore((s) => s.update)
+  const playCount = useHistoryStore((s) => s.plays.length)
+  const clearHistory = useHistoryStore((s) => s.clear)
   const [ytDlpPath, setYtDlpPath] = useState(settings?.ytDlpPath ?? '')
 
   useEffect(() => setYtDlpPath(settings?.ytDlpPath ?? ''), [settings?.ytDlpPath])
@@ -343,6 +346,23 @@ function PlaybackSection() {
         checked={settings.closeToTray}
         onChange={(v) => void update({ closeToTray: v })}
       />
+      <SettingToggle
+        label="Resume where you left off"
+        description="On launch, bring back the queue and the track you were listening to, paused at the same spot."
+        checked={settings.restoreSession}
+        onChange={(v) => void update({ restoreSession: v })}
+      />
+      <div className="flex items-start justify-between gap-6">
+        <span>
+          <span className="block text-[13px] font-medium text-zinc-200">Listening history</span>
+          <span className="block text-[11.5px] text-zinc-500">
+            {playCount ? `${playCount.toLocaleString()} plays saved on this computer.` : 'Nothing saved yet.'}
+          </span>
+        </span>
+        <Button size="sm" variant="secondary" disabled={!playCount} onClick={() => void clearHistory()}>
+          Clear
+        </Button>
+      </div>
       <Field label="yt-dlp path (optional)" hint="Used as a last-resort stream extractor. Leave empty to use yt-dlp from your PATH.">
         <input
           value={ytDlpPath}

@@ -17,9 +17,25 @@ interface TrackListProps {
   /** When set, rows offer "remove from this hybrid playlist". */
   hybridPlaylistId?: string
   compact?: boolean
+  /**
+   * Set when this list is one section of a longer one: playing a row queues
+   * `queueTracks` from `indexOffset + index`, and rows are numbered to match.
+   */
+  queueTracks?: UnifiedTrack[]
+  indexOffset?: number
+  /** Hides the column header, for sections after the first. */
+  hideHeader?: boolean
 }
 
-export function TrackList({ tracks, context, hybridPlaylistId, compact = false }: TrackListProps) {
+export function TrackList({
+  tracks,
+  context,
+  hybridPlaylistId,
+  compact = false,
+  queueTracks,
+  indexOffset = 0,
+  hideHeader = false
+}: TrackListProps) {
   const currentId = usePlayerStore((s) => s.current?.id)
   const isPlaying = useAudioEngineStore((s) => s.transport.isPlaying)
   const playQueue = usePlayerStore((s) => s.playQueue)
@@ -27,7 +43,7 @@ export function TrackList({ tracks, context, hybridPlaylistId, compact = false }
 
   return (
     <div role="table" aria-label={context.label} className="text-[13px]">
-      {!compact && (
+      {!compact && !hideHeader && (
         <div
           role="row"
           className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,0.7fr)_4.5rem_6.5rem] items-center gap-3 border-b border-white/6 px-3 pb-2 text-[11px] font-medium tracking-wider text-zinc-500 uppercase"
@@ -41,16 +57,16 @@ export function TrackList({ tracks, context, hybridPlaylistId, compact = false }
           <span />
         </div>
       )}
-      <div role="rowgroup" className={compact ? '' : 'pt-1'}>
+      <div role="rowgroup" className={compact || hideHeader ? '' : 'pt-1'}>
         {tracks.map((track, index) => (
           <TrackRow
             key={`${track.id}:${index}`}
             track={track}
-            index={index}
+            index={indexOffset + index}
             compact={compact}
             active={track.id === currentId}
             playing={track.id === currentId && isPlaying}
-            onPlay={() => void playQueue(tracks, index, context)}
+            onPlay={() => void playQueue(queueTracks ?? tracks, indexOffset + index, context)}
             onRemove={hybridPlaylistId ? () => void removeFromHybrid(hybridPlaylistId, [track.id]) : undefined}
             hybridPlaylistId={hybridPlaylistId}
           />

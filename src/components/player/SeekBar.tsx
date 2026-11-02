@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
+import { usePlayerStore } from '@/store/usePlayerStore'
 import { cx, formatTime } from '@/lib/format'
 
 /**
@@ -9,13 +10,20 @@ import { cx, formatTime } from '@/lib/format'
 export function SeekBar({ disabled = false }: { disabled?: boolean }) {
   const transport = useAudioEngineStore((s) => s.transport)
   const loop = useAudioEngineStore((s) => s.loop)
-  const seek = useAudioEngineStore((s) => s.seek)
+  const engineSeek = useAudioEngineStore((s) => s.seek)
+  // A restored track is not loaded until play is pressed; until then the bar shows and moves its resume point.
+  const resumeAt = usePlayerStore((s) => (s.status === 'idle' && s.current ? s.resumeAt : null))
+  const resumeDuration = usePlayerStore((s) => (s.current?.durationMs ?? 0) / 1000)
+  const setResumeAt = usePlayerStore((s) => s.setResumeAt)
   const trackRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<number | null>(null)
   const [hover, setHover] = useState<number | null>(null)
 
-  const duration = transport.duration
-  const time = drag ?? transport.currentTime
+  const pending = resumeAt !== null && transport.duration <= 0
+  const duration = pending ? resumeDuration : transport.duration
+  const currentTime = pending ? resumeAt : transport.currentTime
+  const time = drag ?? currentTime
+  const seek = pending ? setResumeAt : engineSeek
   const pct = (seconds: number): number => (duration > 0 ? Math.min(100, Math.max(0, (seconds / duration) * 100)) : 0)
 
   const timeAt = (clientX: number): number => {
@@ -65,15 +73,15 @@ export function SeekBar({ disabled = false }: { disabled?: boolean }) {
         onPointerUp={onPointerUp}
         onPointerLeave={() => setHover(null)}
         onKeyDown={(e) => {
-          if (e.key === 'ArrowRight') seek(transport.currentTime + 5)
-          if (e.key === 'ArrowLeft') seek(transport.currentTime - 5)
+          if (e.key === 'ArrowRight') seek(currentTime + 5)
+          if (e.key === 'ArrowLeft') seek(currentTime - 5)
         }}
         className={cx('group relative flex h-4 flex-1 cursor-pointer items-center', disabled && 'pointer-events-none opacity-50')}
       >
         <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/12 transition-[height] group-hover:h-1.5">
           <div
             className="absolute inset-y-0 left-0 bg-white/20"
-            style={{ width: `${pct(transport.currentTime + transport.bufferedAhead)}%` }}
+            style={{ width: `${pct(currentTime + transport.bufferedAhead)}%` }}
           />
           {loopVisible && (
             <div

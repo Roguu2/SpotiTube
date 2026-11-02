@@ -83,6 +83,13 @@ const electronAPI: ElectronAPI = {
     download: () => invoke(IpcChannels.updatesDownload),
     install: () => invoke(IpcChannels.updatesInstall),
     onStateChange: (listener) => subscribe<[UpdateState]>(IpcChannels.updatesStateChanged, listener)
+  },
+  history: {
+    get: () => invoke(IpcChannels.historyGet),
+    recordPlay: (track, context) => invoke(IpcChannels.historyRecordPlay, track, context),
+    clear: () => invoke(IpcChannels.historyClear),
+    getSession: () => invoke(IpcChannels.historyGetSession),
+    saveSession: (session) => invoke(IpcChannels.historySaveSession, session)
   }
 }
 
