@@ -140,7 +140,20 @@ Two GitHub Actions workflows build on `windows-latest` and `macos-latest`:
 
 - **`build.yml`** — on every push to `main` and on pull requests: type-check, bundle, package, and upload the
   `.exe` and `.dmg` as workflow artifacts (kept 14 days).
-- **`release.yml`** — on a `v*` tag: package and publish both installers to a **draft** GitHub Release.
+- **`release.yml`** — on a `v*` tag: builds both installers and publishes them to the public
+  [SpotiTube-releases](https://github.com/Roguu2/SpotiTube-releases/releases) repository. The source repo stays
+  private; the public repo only holds installers and the update feed.
+
+The release goes live automatically, but only after both platform builds succeed and every file is uploaded;
+otherwise it stays a draft. Release notes are generated from the commits since the previous tag.
+
+**One-time setup:** create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
+with access to **only** `Roguu2/SpotiTube-releases` and the permission **Contents: Read and write**. Then store it in
+this repo as the `RELEASES_TOKEN` secret:
+
+```bash
+gh secret set RELEASES_TOKEN --repo Roguu2/SpotiTube
+```
 
 To cut a release:
 
@@ -152,7 +165,7 @@ npm version patch
 git push --follow-tags
 ```
 
-Then review the draft on the repository's **Releases** page and publish it.
+Installed apps pick it up within hours, or immediately via **Settings → Updates → Check for updates**.
 
 ### In-app updates
 
@@ -163,9 +176,8 @@ Installed builds update themselves from GitHub Releases (`electron-updater`):
 - **Download:** with **Automatic updates** on (the default), a new version downloads in the background. When it's
   ready, a **Restart to update** card appears in the sidebar. Restarting installs silently and relaunches the app;
   otherwise the update installs the next time SpotiTube quits.
-- **Release requirements:** the app only sees **published** releases (not drafts), with the `latest.yml` /
-  `latest-mac.yml` files the release workflow uploads. The releases must be readable without signing in, so a private
-  repository needs its releases published somewhere public.
+- **Feed:** updates come from the published releases in the public `SpotiTube-releases` repo, through the
+  `latest.yml` / `latest-mac.yml` files the release workflow uploads. Drafts are ignored.
 - **macOS:** automatic installation only works for code-signed builds. Unsigned macOS builds report the update and
   link to the download page instead.
 

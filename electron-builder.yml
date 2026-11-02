@@ -44,6 +44,10 @@ linux:
 appImage:
   artifactName: ${productName}-${version}.${ext}
 
+# Source is private; installers and the update feed live in a public repo so
+# installed apps can update without credentials.
 publish:
   provider: github
+  owner: Roguu2
+  repo: SpotiTube-releases
   releaseType: draft

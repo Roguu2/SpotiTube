@@ -8,7 +8,7 @@ const { autoUpdater } = electronUpdater
 
 const STARTUP_DELAY_MS = 15_000
 const CHECK_INTERVAL_MS = 4 * 60 * 60_000
-const RELEASES_URL = 'https://github.com/Roguu2/SpotiTube/releases'
+const RELEASES_URL = 'https://github.com/Roguu2/SpotiTube-releases/releases/latest'
 
 function releaseNotesText(info: UpdateInfo): string | undefined {
   const notes = info.releaseNotes
