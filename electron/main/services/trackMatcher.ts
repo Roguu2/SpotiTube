@@ -173,6 +173,16 @@ export class TrackMatcher {
     throw new Error(`No playable upload for "${track.title}" (${failures.join(' | ')})`)
   }
 
+  /** Uploads acceptable for auto-play, best first. Rejects when nothing matches. */
+  acceptable(track: UnifiedTrack): Promise<StreamCandidate[]> {
+    return this.rank(track)
+  }
+
+  /** Records which upload actually ended up playing, for {@link peek}. */
+  markPlayable(trackId: string, candidate: StreamCandidate): void {
+    this.remember(this.playable, trackId, candidate)
+  }
+
   private rank(track: UnifiedTrack): Promise<StreamCandidate[]> {
     const cached = this.ranked.get(track.id)
     if (cached) return Promise.resolve(cached)

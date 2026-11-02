@@ -12,6 +12,7 @@ import {
   type ReverbSettings
 } from '@core/dsp'
 import { getAudioEngine, type AudioEngine, type TransportState } from '@/audio/AudioEngine'
+import { getEmbedPlayer, type YouTubeEmbedPlayer } from '@/audio/YouTubeEmbedPlayer'
 
 const SAVE_DEBOUNCE_MS = 400
 const VOLUME_KEY = 'spotitube.volume'
@@ -54,9 +55,11 @@ interface AudioEngineState {
   /** The current track has its own saved settings. */
   hasTrackProfile: boolean
   pitchShiftAvailable: boolean
+  /** Which player currently produces sound: the Web Audio DSP chain or YouTube's official player. */
+  backend: Backend
 
   init(): Promise<void>
-  loadTrack(trackId: string, src: string, options?: { autoplay?: boolean; startAt?: number }): Promise<void>
+  loadTrack(trackId: string, media: TrackMedia, options?: { autoplay?: boolean; startAt?: number }): Promise<void>
   play(): Promise<void>
   pause(): void
   toggle(): Promise<void>
@@ -90,7 +93,13 @@ interface AudioEngineState {
   resetTrackSettings(): Promise<void>
 }
 
+export type Backend = 'dsp' | 'embed'
+
+/** What to load: a direct audio URL for the DSP chain, or a YouTube video for the official player. */
+export type TrackMedia = { kind: 'url'; url: string } | { kind: 'youtube'; videoId: string }
+
 let engine: AudioEngine | null = null
+let embed: YouTubeEmbedPlayer | null = null
 let globalDsp: DspSettings = sanitizeDsp(DEFAULT_DSP)
 let saveTimer: number | null = null
 let pendingSave: (() => Promise<void>) | null = null
@@ -98,6 +107,11 @@ let pendingSave: (() => Promise<void>) | null = null
 function requireEngine(): AudioEngine {
   if (!engine) throw new Error('Audio engine is not initialised')
   return engine
+}
+
+function requireEmbed(): YouTubeEmbedPlayer {
+  if (!embed) throw new Error('Audio engine is not initialised')
+  return embed
 }
 
 async function flushSave(): Promise<void> {
@@ -128,16 +142,25 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
   const commitDsp = (next: DspSettings): void => {
     const e = requireEngine()
     e.setSettings(next)
+    // The official player only supports speed; pitch/EQ/reverb are kept for when DSP is available.
+    requireEmbed().setRate(e.getSettings().speed)
     set({ dsp: e.getSettings() })
     schedulePersist()
   }
 
-  const commitLoop = (next: LoopRegion): void => {
+  const applyLoop = (next: LoopRegion): void => {
     const e = requireEngine()
     e.setLoop(next)
+    requireEmbed().setLoop(e.getLoop())
     set({ loop: e.getLoop() })
+  }
+
+  const commitLoop = (next: LoopRegion): void => {
+    applyLoop(next)
     schedulePersist()
   }
+
+  const currentTime = (): number => get().transport.currentTime
 
   return {
     hydrated: false,
@@ -159,17 +182,22 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
     currentTrackId: null,
     hasTrackProfile: false,
     pitchShiftAvailable: false,
+    backend: 'dsp',
 
     async init() {
       if (engine) return
       engine = getAudioEngine()
+      embed = getEmbedPlayer()
       const state = await window.electronAPI.dsp.getState()
       globalDsp = state.global
       engine.setSettings(state.global)
       const { volume, muted } = get()
       engine.setVolume(volume)
       engine.setMuted(muted)
-      engine.subscribe((transport) => set({ transport }))
+      embed.setVolume(volume, muted)
+      // Only the active backend drives the UI's transport.
+      engine.subscribe((transport) => get().backend === 'dsp' && set({ transport }))
+      embed.subscribe((transport) => get().backend === 'embed' && set({ transport }))
       const e = engine
       void e.whenReady().then(() => set({ pitchShiftAvailable: e.pitchShiftAvailable }))
       set({
@@ -180,40 +208,52 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
       })
     },
 
-    async loadTrack(trackId, src, options) {
+    async loadTrack(trackId, media, options) {
       const e = requireEngine()
+      const y = requireEmbed()
       await flushSave()
 
-      const profile = get().rememberPerTrack ? await window.electronAPI.dsp.getTrackProfile(trackId) : null
-      e.setSettings(profile?.dsp ?? globalDsp)
-      e.setLoop(profile?.loop ?? EMPTY_LOOP)
-      set({
-        currentTrackId: trackId,
-        hasTrackProfile: profile !== null,
-        dsp: e.getSettings(),
-        loop: e.getLoop()
-      })
+      // Re-loading the same track (e.g. switching backend mid-song) keeps live edits.
+      if (trackId !== get().currentTrackId) {
+        const profile = get().rememberPerTrack ? await window.electronAPI.dsp.getTrackProfile(trackId) : null
+        e.setSettings(profile?.dsp ?? globalDsp)
+        applyLoop(profile?.loop ?? EMPTY_LOOP)
+        set({ currentTrackId: trackId, hasTrackProfile: profile !== null, dsp: e.getSettings() })
+      }
 
       // Resume an A-B loop at A rather than at the start of the track.
-      const loop = e.getLoop()
+      const loop = get().loop
       const startAt = options?.startAt ?? (loop.enabled && loop.a !== null ? loop.a : 0)
-      await e.load(src, { autoplay: options?.autoplay ?? true, startAt })
+      const autoplay = options?.autoplay ?? true
+
+      if (media.kind === 'youtube') {
+        e.stop()
+        set({ backend: 'embed', transport: y.getTransport() })
+        y.setRate(e.getSettings().speed)
+        await y.load(media.videoId, { autoplay, startAt })
+      } else {
+        y.stop()
+        set({ backend: 'dsp', transport: e.getTransport() })
+        await e.load(media.url, { autoplay, startAt })
+      }
     },
 
-    play: () => requireEngine().play(),
-    pause: () => requireEngine().pause(),
-    toggle: () => requireEngine().toggle(),
+    play: () => (get().backend === 'embed' ? Promise.resolve(requireEmbed().play()) : requireEngine().play()),
+    pause: () => (get().backend === 'embed' ? requireEmbed().pause() : requireEngine().pause()),
+    toggle: () => (get().backend === 'embed' ? Promise.resolve(requireEmbed().toggle()) : requireEngine().toggle()),
     stop: () => {
       requireEngine().stop()
-      set({ currentTrackId: null, hasTrackProfile: false })
+      requireEmbed().stop()
+      set({ currentTrackId: null, hasTrackProfile: false, backend: 'dsp' })
     },
-    seek: (seconds) => requireEngine().seek(seconds),
+    seek: (seconds) => (get().backend === 'embed' ? requireEmbed().seek(seconds) : requireEngine().seek(seconds)),
 
     setVolume(volume) {
       const e = requireEngine()
-      e.setVolume(volume)
       const muted = volume > 0 ? false : get().muted
+      e.setVolume(volume)
       e.setMuted(muted)
+      requireEmbed().setVolume(volume, muted)
       set({ volume, muted })
       writeVolume({ volume, muted })
     },
@@ -221,6 +261,7 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
     toggleMute() {
       const muted = !get().muted
       requireEngine().setMuted(muted)
+      requireEmbed().setVolume(get().volume, muted)
       set({ muted })
       writeVolume({ volume: get().volume, muted })
     },
@@ -265,8 +306,18 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
       if (get().dsp.eqPreset === name) commitDsp({ ...get().dsp, eqPreset: null })
     },
 
-    markA: () => commitLoop(requireEngine().markA()),
-    markB: () => commitLoop(requireEngine().markB()),
+    markA() {
+      // Markers use the active player's playhead; B is dropped if it would precede A.
+      const at = currentTime()
+      const { b } = get().loop
+      const keepB = b !== null && b > at ? b : null
+      commitLoop({ a: at, b: keepB, enabled: keepB !== null })
+    },
+    markB() {
+      const at = currentTime()
+      const { a } = get().loop
+      commitLoop({ a: a !== null && a < at ? a : 0, b: at, enabled: true })
+    },
     setLoop: (loop) => commitLoop(loop),
     toggleLoop() {
       const loop = get().loop
@@ -295,8 +346,9 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
       if (currentTrackId) await window.electronAPI.dsp.saveTrackProfile(currentTrackId, null)
       const e = requireEngine()
       e.setSettings(globalDsp)
-      e.setLoop(EMPTY_LOOP)
-      set({ dsp: e.getSettings(), loop: e.getLoop(), hasTrackProfile: false })
+      requireEmbed().setRate(e.getSettings().speed)
+      applyLoop(EMPTY_LOOP)
+      set({ dsp: e.getSettings(), hasTrackProfile: false })
     }
   }
 })

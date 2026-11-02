@@ -18,6 +18,11 @@ import type { StreamProxy } from './streamProxy'
 import { errorMessage } from './http'
 import { getProfileName, getSettings, getStreamOverride, setStreamOverride } from './store'
 
+/** Uploads handed to the renderer as embed fallbacks. */
+const MAX_CANDIDATES = 6
+/** Uploads tried for a direct stream before giving up on it. */
+const MAX_STREAM_ATTEMPTS = 3
+
 interface Providers {
   spotify: SpotifyProvider
   ytmusic: YouTubeMusicProvider
@@ -109,36 +114,92 @@ export class ProviderRegistry {
   }
 
   /**
-   * Resolves audio for a track and registers it with the local proxy.
-   * Order: manual override → provider (auto-match) → synthesized fallback.
+   * Decides how a track plays:
+   * 1. Find the YouTube upload(s) for it (manual override → own video id → auto-match).
+   * 2. If YouTube serves complete direct streams, proxy one into the DSP chain (`stream`).
+   * 3. Otherwise use YouTube's official embedded player (`embed`) — complete playback,
+   *    no DSP. Direct streams are only served for ~1 minute without a proof-of-origin
+   *    token, which SpotiTube does not attempt to generate.
+   * 4. With no match at all, fall back to a synthesized preview (`synthetic`) if enabled.
    */
   async getPlaybackSource(track: UnifiedTrack): Promise<PlaybackSource> {
+    if (track.source === 'local') {
+      const upstream = await this.provider(track.providerId).resolveStreamUrl(track)
+      const url = this.proxy.register(track.id, () => this.provider(track.providerId).resolveStreamUrl(track), upstream)
+      return { mode: 'stream', url, alternatives: [], isOverride: false }
+    }
+
     const override = getStreamOverride(track.id)
-
-    const resolveUpstream = async (force: boolean): Promise<string> => {
-      if (override) return this.resolver.resolve(override.videoId, force)
-      if (force) {
-        const videoId = track.streamVideoId ?? this.matcher.peek(track.id)?.videoId
-        if (videoId) return this.resolver.resolve(videoId, true)
-      }
-      return this.provider(track.providerId).resolveStreamUrl(track)
-    }
-
+    let candidates: StreamCandidate[]
     try {
-      const upstream = await resolveUpstream(false)
-      const url = this.proxy.register(track.id, resolveUpstream, upstream)
-      return {
-        url,
-        candidate: override ?? this.candidateFor(track),
-        isOverride: !!override,
-        isSynthetic: false
-      }
+      candidates = override ? [override] : await this.youtubeCandidates(track)
     } catch (error) {
-      if (!getSettings().syntheticFallback) throw error
-      const synthetic = `synth:${track.id}`
-      const url = this.proxy.register(track.id, async () => synthetic, synthetic)
-      return { url, isOverride: false, isSynthetic: true }
+      return this.synthetic(track, error)
     }
+
+    const stream = await this.tryDirectStream(track, candidates)
+    if (stream) {
+      const alternatives = candidates.filter((c) => c.videoId !== stream.candidate.videoId)
+      return { mode: 'stream', url: stream.url, candidate: stream.candidate, alternatives, isOverride: !!override }
+    }
+
+    const [candidate, ...alternatives] = candidates
+    return { mode: 'embed', candidate, alternatives, isOverride: !!override }
+  }
+
+  private async youtubeCandidates(track: UnifiedTrack): Promise<StreamCandidate[]> {
+    if (track.streamVideoId) {
+      return [
+        {
+          videoId: track.streamVideoId,
+          title: track.title,
+          artists: track.artists.map((a) => a.name),
+          durationMs: track.durationMs,
+          artworkUrl: track.artworkUrl,
+          kind: 'song',
+          score: 1
+        }
+      ]
+    }
+    return (await this.matcher.acceptable(track)).slice(0, MAX_CANDIDATES)
+  }
+
+  /** Proxies a direct stream when YouTube hands out complete ones; `null` means "use the embed". */
+  private async tryDirectStream(
+    track: UnifiedTrack,
+    candidates: StreamCandidate[]
+  ): Promise<{ url: string; candidate: StreamCandidate } | null> {
+    if (this.resolver.isKnownBlocked()) return null
+
+    for (const candidate of candidates.slice(0, MAX_STREAM_ATTEMPTS)) {
+      let upstream: string
+      try {
+        upstream = await this.resolver.resolve(candidate.videoId)
+      } catch {
+        continue
+      }
+      try {
+        if (!(await this.resolver.hasFullAccess(upstream))) return null
+      } catch {
+        // The access probe itself failed (network); let the embed handle playback.
+        return null
+      }
+      this.matcher.markPlayable(track.id, candidate)
+      const url = this.proxy.register(
+        track.id,
+        (force) => this.resolver.resolve(candidate.videoId, force),
+        upstream
+      )
+      return { url, candidate }
+    }
+    return null
+  }
+
+  private synthetic(track: UnifiedTrack, cause: unknown): PlaybackSource {
+    if (!getSettings().syntheticFallback) throw cause
+    const synthetic = `synth:${track.id}`
+    const url = this.proxy.register(track.id, async () => synthetic, synthetic)
+    return { mode: 'synthetic', url, alternatives: [], isOverride: false }
   }
 
   async getCandidates(track: UnifiedTrack, query?: string): Promise<StreamCandidate[]> {
@@ -163,19 +224,4 @@ export class ProviderRegistry {
     }
   }
 
-  /** The YouTube upload currently backing a track, for display in the source picker. */
-  private candidateFor(track: UnifiedTrack): StreamCandidate | undefined {
-    if (track.streamVideoId) {
-      return {
-        videoId: track.streamVideoId,
-        title: track.title,
-        artists: track.artists.map((a) => a.name),
-        durationMs: track.durationMs,
-        artworkUrl: track.artworkUrl,
-        kind: 'song',
-        score: 1
-      }
-    }
-    return this.matcher.peek(track.id)
-  }
 }

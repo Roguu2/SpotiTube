@@ -28,6 +28,7 @@ import { cx, formatHz, formatSigned, formatTime } from '@/lib/format'
 export function AudioStudio() {
   const close = useSettingsStore((s) => s.toggleStudio)
   const hydrated = useAudioEngineStore((s) => s.hydrated)
+  const embedMode = useEmbedMode()
 
   return (
     <motion.aside
@@ -49,10 +50,17 @@ export function AudioStudio() {
           </IconButton>
         </header>
         <div className="px-5">
-          <Spectrum />
+          {embedMode ? (
+            <div className="flex h-16 items-center justify-center rounded-lg bg-white/[0.03] text-[11.5px] text-zinc-500">
+              Spectrum needs a direct stream
+            </div>
+          ) : (
+            <Spectrum />
+          )}
         </div>
         {hydrated ? (
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-6">
+            {embedMode && <EmbedNotice />}
             <VibeSection />
             <SpeedPitchSection />
             <EqSection />
@@ -71,16 +79,47 @@ export function AudioStudio() {
   )
 }
 
-function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+function Section({
+  title,
+  aside,
+  disabled = false,
+  children
+}: {
+  title: string
+  aside?: ReactNode
+  /** Greys out and disables every control inside (e.g. DSP sections in YouTube-player mode). */
+  disabled?: boolean
+  children: ReactNode
+}) {
   return (
     <section className="rounded-xl px-2 py-3">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">{title}</h3>
-        {aside}
-      </div>
-      {children}
+      <fieldset disabled={disabled} className={cx('min-w-0 transition-opacity', disabled && 'opacity-40')}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">{title}</h3>
+          {aside}
+        </div>
+        {children}
+      </fieldset>
     </section>
   )
+}
+
+/** Explains why DSP controls are unavailable while the official YouTube player is in use. */
+function EmbedNotice() {
+  return (
+    <div className="mx-2 mt-2 rounded-lg bg-amber-400/10 px-3 py-2.5 text-[12px] leading-relaxed text-amber-200/90 ring-1 ring-amber-400/20">
+      <p className="font-semibold text-amber-200">Playing through YouTube's official player</p>
+      <p className="mt-1 text-amber-200/75">
+        YouTube currently doesn't let apps stream complete tracks directly, so EQ, pitch, reverb and the vibe
+        presets are paused. Speed, A-B loops and version selection still work, and your settings are kept for when
+        direct streaming is available again.
+      </p>
+    </div>
+  )
+}
+
+function useEmbedMode(): boolean {
+  return useAudioEngineStore((s) => s.backend === 'embed')
 }
 
 function Row({ label, value, children }: { label: string; value: string; children: ReactNode }) {
@@ -95,15 +134,29 @@ function Row({ label, value, children }: { label: string; value: string; childre
   )
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled = false
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+  disabled?: boolean
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cx('relative h-5 w-9 shrink-0 rounded-full transition-colors', checked ? 'bg-spotify' : 'bg-white/15')}
+      className={cx(
+        'relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40',
+        checked ? 'bg-spotify' : 'bg-white/15'
+      )}
     >
       <span className={cx('absolute top-0.5 size-4 rounded-full bg-white shadow transition-[left]', checked ? 'left-[18px]' : 'left-0.5')} />
     </button>
@@ -125,6 +178,7 @@ function ProfileStatus() {
 }
 
 function VibeSection() {
+  const embedMode = useEmbedMode()
   const dsp = useAudioEngineStore((s) => s.dsp)
   const apply = useAudioEngineStore((s) => s.applyDspPreset)
   const active = activeDspPreset(dsp)
@@ -134,7 +188,7 @@ function VibeSection() {
     'slowed-reverb': 'from-indigo-500/35 to-sky-500/5'
   }
   return (
-    <Section title="Vibe">
+    <Section title="Vibe" disabled={embedMode}>
       <div className="grid grid-cols-3 gap-2">
         {(Object.keys(DSP_PRESETS) as DspPresetId[]).map((id) => (
           <button
@@ -157,6 +211,7 @@ function VibeSection() {
 }
 
 function SpeedPitchSection() {
+  const embedMode = useEmbedMode()
   const dsp = useAudioEngineStore((s) => s.dsp)
   const pitchAvailable = useAudioEngineStore((s) => s.pitchShiftAvailable)
   const setSpeed = useAudioEngineStore((s) => s.setSpeed)
@@ -170,7 +225,7 @@ function SpeedPitchSection() {
       aside={
         <label className="flex items-center gap-2 text-[11.5px] text-zinc-400">
           <Link2 size={13} /> Linked
-          <Toggle checked={dsp.linked} onChange={setLinked} label="Link pitch to speed" />
+          <Toggle checked={dsp.linked} onChange={setLinked} label="Link pitch to speed" disabled={embedMode} />
         </label>
       }
     >
@@ -187,7 +242,7 @@ function SpeedPitchSection() {
           onChange={setPitch}
           bipolar
           resetValue={0}
-          disabled={dsp.linked || !pitchAvailable}
+          disabled={dsp.linked || !pitchAvailable || embedMode}
           valueText={`${formatSigned(pitch, 1)} semitones`}
         />
       </Row>
@@ -197,6 +252,7 @@ function SpeedPitchSection() {
 }
 
 function EqSection() {
+  const embedMode = useEmbedMode()
   const dsp = useAudioEngineStore((s) => s.dsp)
   const customPresets = useAudioEngineStore((s) => s.customPresets)
   const setEqBand = useAudioEngineStore((s) => s.setEqBand)
@@ -223,6 +279,7 @@ function EqSection() {
   return (
     <Section
       title="Equalizer"
+      disabled={embedMode}
       aside={
         <div className="flex items-center gap-1">
           <select
@@ -306,10 +363,11 @@ function EqSection() {
 }
 
 function ReverbSection() {
+  const embedMode = useEmbedMode()
   const reverb = useAudioEngineStore((s) => s.dsp.reverb)
   const setReverb = useAudioEngineStore((s) => s.setReverb)
   return (
-    <Section title="Reverb">
+    <Section title="Reverb" disabled={embedMode}>
       <Row label="Mix" value={`${Math.round(reverb.mix * 100)}%`}>
         <Slider label="Reverb mix" min={0} max={1} step={0.01} value={reverb.mix} onChange={(mix) => setReverb({ mix })} resetValue={0} accent="#818cf8" />
       </Row>

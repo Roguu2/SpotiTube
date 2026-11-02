@@ -20,7 +20,8 @@
 - **Side-by-side search** across both catalogs.
 - **Plays everything through YouTube Music** — Spotify tracks are matched to the best YouTube Music upload
   automatically; the **stream source picker** lets you swap to a live, remix, slowed or other version and pin it.
-- **Audio Studio** (real-time Web Audio DSP):
+  See [How playback works](#how-playback-works) for the two playback modes.
+- **Audio Studio** (real-time Web Audio DSP, available with direct streams):
   - speed 0.5–2.0× — time-stretched, or *linked* tape-style where pitch follows speed
   - independent pitch shift ±12 semitones (AudioWorklet)
   - 10-band EQ with built-in presets (Flat, Bass Boost, Vocal, Electronic, …) and your own
@@ -95,11 +96,28 @@ Search, public playlists and streaming work without signing in. To load **your**
 The cookie must contain `SAPISID` / `__Secure-3PAPISID`. If YouTube signs you out of that browser session, reconnect
 with a fresh cookie.
 
-### Optional: yt-dlp fallback
+## How playback works
 
-SpotiTube extracts streams itself via [YouTube.js](https://github.com/LuanRT/YouTube.js), trying several InnerTube
-clients in turn. If YouTube changes something and all of them fail, it falls back to
-[yt-dlp](https://github.com/yt-dlp/yt-dlp) when it is installed on your `PATH` or configured in Settings.
+Spotify does not offer full-track audio to third-party apps, so every track is played from YouTube Music. SpotiTube
+picks one of two modes per track, automatically:
+
+| Mode | When | What you get |
+| --- | --- | --- |
+| **Direct stream** | YouTube serves the complete audio stream | Full Audio Studio: EQ, pitch, reverb, Nightcore / Slowed, spectrum |
+| **YouTube player** | YouTube serves only part of the stream | Complete playback through YouTube's official embedded player, shown in a mini-player. Speed, volume, seeking, A-B loops and version selection work; EQ, pitch and reverb are paused |
+
+YouTube currently serves only the first ~1 MB (about a minute) of a direct stream to apps without a proof-of-origin
+token. SpotiTube does not try to generate such tokens or otherwise get around YouTube's protections. It checks once
+whether complete streams are available and otherwise uses the official player, so tracks always play to the end
+instead of going silent. If a direct stream is cut off mid-song, playback continues in the official player at the
+same position.
+
+Your DSP settings are kept per track and apply again whenever a direct stream is available.
+
+### Optional: yt-dlp
+
+When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.js) fails outright, SpotiTube can use
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) if it is installed on your `PATH` or configured in Settings.
 
 ## Keyboard shortcuts
 
@@ -231,7 +249,9 @@ holds per-track audio settings and custom EQ presets. Deleting the folder resets
 | *“INVALID_CLIENT: Invalid redirect URI”* | The dashboard redirect URI must be exactly `http://127.0.0.1:43821/callback`. |
 | *“Port 43821 is in use”* | Another app holds the OAuth callback port; close it and retry. |
 | Spotify connects but shows no playlists | Add your account under **User Management** in the Spotify dashboard (development mode). |
-| A track plays the *synth preview* | No playable upload was found. Pick a version in **Audio Studio → Stream source**, or install yt-dlp. |
+| A track plays the *synth preview* | No matching upload was found. Pick a version in **Audio Studio → Stream source**. |
+| EQ / pitch / reverb are greyed out | The track is playing through the official YouTube player; see [How playback works](#how-playback-works). |
+| “Uploader does not allow this video in other apps” | SpotiTube tries other uploads automatically; you can also pick one in **Stream source**. |
 | Wrong version auto-matched | Choose the right one in **Stream source**; it is pinned for that track from then on. |
 
 ## Disclaimer

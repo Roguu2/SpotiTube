@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, session } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createMainWindow } from './window'
 import { registerWindowIpc } from './ipc/window'
@@ -16,6 +16,8 @@ import { SpotifyProvider } from './providers/spotify/SpotifyProvider'
 import { YouTubeMusicProvider } from './providers/ytmusic/YouTubeMusicProvider'
 import { HybridProvider } from './providers/hybrid/HybridProvider'
 import { DemoProvider } from './providers/demo/DemoProvider'
+
+const APP_ID = 'com.spotitube.app'
 
 let mainWindow: BrowserWindow | null = null
 let tray: AppTray | null = null
@@ -40,12 +42,30 @@ function showMainWindow(): void {
   mainWindow.focus()
 }
 
+/**
+ * The renderer is a local file, so the YouTube embed would load without a
+ * Referer and be refused. YouTube asks embedding apps to identify themselves;
+ * we send the app id as the referring origin.
+ */
+function identifyEmbedRequests(): void {
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://www.youtube-nocookie.com/embed/*'] },
+    (details, callback) => {
+      if (!details.requestHeaders['Referer']) details.requestHeaders['Referer'] = `https://${APP_ID}/`
+      callback({ requestHeaders: details.requestHeaders })
+    }
+  )
+}
+
 async function bootstrap(): Promise<void> {
   const youtube = new YouTubeClient()
   const resolver = new StreamResolver(youtube)
   const matcher = new TrackMatcher(youtube)
   const proxy = new StreamProxy()
+  // Mid-playback refusals switch every following track straight to the official player.
+  proxy.onUpstreamBlocked = () => resolver.markBlocked()
   await proxy.start()
+  identifyEmbedRequests()
 
   const spotifyAuth = new SpotifyAuth(() => getSettings().spotifyClientId)
   const spotify = new SpotifyProvider(spotifyAuth, matcher, resolver)
@@ -94,7 +114,7 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   void app.whenReady().then(async () => {
-    electronApp.setAppUserModelId('com.spotitube.app')
+    electronApp.setAppUserModelId(APP_ID)
 
     // F12 toggles DevTools in development; Ctrl/Cmd+R reload is disabled in production.
     app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))

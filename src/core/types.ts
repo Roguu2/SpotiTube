@@ -79,15 +79,25 @@ export interface StreamCandidate {
   score: number
 }
 
+/**
+ * How a track is played:
+ * - `stream`: direct audio through the local proxy into the Web Audio DSP chain.
+ * - `embed`: YouTube's official embedded player — used when YouTube does not hand out
+ *   full direct streams. No DSP beyond speed, but complete, compliant playback.
+ * - `synthetic`: a generated preview when nothing could be matched at all.
+ */
+export type PlaybackMode = 'stream' | 'embed' | 'synthetic'
+
 export interface PlaybackSource {
-  /** Local proxy URL safe to assign to an <audio> element with crossOrigin="anonymous". */
-  url: string
-  /** The YouTube video currently backing playback, if any. */
+  mode: PlaybackMode
+  /** Local proxy URL (`stream` and `synthetic` modes), for an <audio crossOrigin="anonymous">. */
+  url?: string
+  /** The YouTube upload backing playback (always set for `stream` and `embed`). */
   candidate?: StreamCandidate
+  /** Further acceptable uploads, best first — tried when the embed refuses a video. */
+  alternatives: StreamCandidate[]
   /** True when the user pinned this source manually. */
   isOverride: boolean
-  /** True when audio is synthesized because no stream could be resolved. */
-  isSynthetic: boolean
 }
 
 export function makeTrackId(source: SourceId, sourceTrackId: string): string {

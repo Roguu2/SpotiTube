@@ -7,6 +7,7 @@ import { LibraryView } from './components/library/LibraryView'
 import { PlaylistView } from './components/library/PlaylistView'
 import { SearchView } from './components/library/SearchView'
 import { PlayerBar } from './components/player/PlayerBar'
+import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
 import { AudioStudio } from './components/studio/AudioStudio'
 import { SettingsModal } from './components/settings/SettingsModal'
 import { Toasts } from './components/ui/Toasts'
@@ -49,6 +50,7 @@ export function App() {
         <AnimatePresence initial={false}>{studioOpen && <AudioStudio key="studio" />}</AnimatePresence>
       </div>
       <PlayerBar />
+      <EmbedMiniPlayer />
       <SettingsModal />
       <Toasts />
     </div>

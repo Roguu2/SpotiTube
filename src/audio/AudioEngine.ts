@@ -32,6 +32,8 @@ const RAMP = 0.03
 const LOOP_POLL_MS = 15
 const IMPULSE_DEBOUNCE_MS = 120
 const EQ_Q = 1.1
+/** A playing element whose playhead has not moved for this long is treated as failed. */
+const STALL_LIMIT_SECONDS = 8
 
 const INITIAL_TRANSPORT: TransportState = {
   src: null,
@@ -137,6 +139,7 @@ export class AudioEngine {
     this.analyser.connect(this.context.destination)
 
     this.bindMediaEvents()
+    this.bindRecovery()
     this.ready = this.loadPitchShifter()
     this.applyAll()
   }
@@ -289,24 +292,6 @@ export class AudioEngine {
     this.syncLoopTimer()
   }
 
-  /** Sets A at the playhead; clears B if it would precede A. */
-  markA(at = this.media.currentTime): LoopRegion {
-    const b = this.loop.b !== null && this.loop.b > at ? this.loop.b : null
-    this.setLoop({ a: at, b, enabled: b !== null })
-    return this.loop
-  }
-
-  /** Sets B at the playhead and enables the loop when A precedes it. */
-  markB(at = this.media.currentTime): LoopRegion {
-    const a = this.loop.a !== null && this.loop.a < at ? this.loop.a : 0
-    this.setLoop({ a, b: at, enabled: true })
-    return this.loop
-  }
-
-  clearLoop(): void {
-    this.setLoop({ ...EMPTY_LOOP })
-  }
-
   // ── Internals ────────────────────────────────────────────────────────────
 
   private async loadPitchShifter(): Promise<void> {
@@ -434,6 +419,42 @@ export class AudioEngine {
       default:
         return error.message || 'Playback failed'
     }
+  }
+
+  /**
+   * Keeps "playing" honest. The AudioContext can be suspended or interrupted by
+   * an output-device change or system sleep while the media element keeps
+   * running (silence with a moving playhead); and a stream that stops
+   * delivering data leaves the element waiting forever. Both are detected here.
+   */
+  private bindRecovery(): void {
+    const resumeIfPlaying = (): void => {
+      if (!this.media.paused && this.context.state !== 'running') {
+        void this.context.resume().catch(() => undefined)
+      }
+    }
+    this.context.addEventListener('statechange', resumeIfPlaying)
+    navigator.mediaDevices?.addEventListener('devicechange', resumeIfPlaying)
+
+    let lastTime = -1
+    let stalledSeconds = 0
+    window.setInterval(() => {
+      resumeIfPlaying()
+      const media = this.media
+      if (media.paused || media.ended || !media.getAttribute('src')) {
+        stalledSeconds = 0
+        lastTime = -1
+        return
+      }
+      if (media.currentTime === lastTime) stalledSeconds++
+      else stalledSeconds = 0
+      lastTime = media.currentTime
+      if (stalledSeconds >= STALL_LIMIT_SECONDS) {
+        stalledSeconds = 0
+        media.pause()
+        this.update({ isPlaying: false, isBuffering: false, error: 'The stream stopped delivering audio' })
+      }
+    }, 1000)
   }
 
   private bindMediaEvents(): void {

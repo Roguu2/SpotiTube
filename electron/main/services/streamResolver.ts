@@ -5,8 +5,8 @@ import { getSettings } from './store'
 import { errorMessage } from './http'
 
 /**
- * InnerTube clients that currently return directly playable audio without a
- * PO token, in order of preference. WEB/TV/ANDROID_VR are refused upstream.
+ * InnerTube clients that return stream URLs, in order of preference. Whether
+ * those URLs serve the complete file is checked separately by {@link StreamResolver.hasFullAccess}.
  */
 const STREAM_CLIENTS: Types.InnerTubeClient[] = ['YTMUSIC', 'IOS', 'MWEB']
 const YT_DLP = 'yt-dlp' as const
@@ -20,12 +20,51 @@ interface CachedStream {
   strategy: number
 }
 
+/** How long a verdict about full-stream access is trusted before re-checking. */
+const ACCESS_TTL_MS = 10 * 60_000
+/** Streams are served freely up to roughly this offset even when full access is denied. */
+const FREE_PREFIX_BYTES = 1024 * 1024
+
 /** Turns a YouTube video id into a short-lived direct googlevideo audio URL. */
 export class StreamResolver {
   private readonly cache = new Map<string, CachedStream>()
   private readonly inflight = new Map<string, Promise<string>>()
+  private access: { allowed: boolean; checkedAt: number } | null = null
 
   constructor(private readonly youtube: YouTubeClient) {}
+
+  /** True when a recent check showed YouTube refusing full direct streams. */
+  isKnownBlocked(): boolean {
+    return this.access !== null && !this.access.allowed && Date.now() - this.access.checkedAt < ACCESS_TTL_MS
+  }
+
+  /** Records that the upstream refused bytes beyond the free prefix mid-playback. */
+  markBlocked(): void {
+    this.access = { allowed: false, checkedAt: Date.now() }
+  }
+
+  /**
+   * Checks whether YouTube serves the *whole* stream. Without a proof-of-origin
+   * token it only serves about the first megabyte and answers 403 afterwards —
+   * playback would go silent after ~1 minute. The verdict is cached because it
+   * applies to every stream from this session.
+   */
+  async hasFullAccess(url: string): Promise<boolean> {
+    if (this.access && Date.now() - this.access.checkedAt < ACCESS_TTL_MS) return this.access.allowed
+
+    const size = Number(new URL(url).searchParams.get('clen'))
+    // A stream that fits in the free prefix proves nothing either way.
+    if (!(size > FREE_PREFIX_BYTES + 64 * 1024)) return true
+
+    const response = await fetch(url, {
+      headers: { Range: `bytes=${size - 2}-${size - 1}` },
+      signal: AbortSignal.timeout(10_000)
+    })
+    await response.body?.cancel()
+    const allowed = response.status === 206 || response.status === 200
+    this.access = { allowed, checkedAt: Date.now() }
+    return allowed
+  }
 
   /**
    * @param force Skip the cache and the strategy that produced the cached URL —

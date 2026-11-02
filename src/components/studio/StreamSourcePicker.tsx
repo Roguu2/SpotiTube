@@ -60,7 +60,7 @@ export function StreamSourcePicker() {
   return (
     <div className="space-y-3">
       <div className="rounded-lg bg-black/25 p-2.5 ring-1 ring-white/6">
-        {source?.isSynthetic ? (
+        {source?.mode === 'synthetic' ? (
           <p className="text-[12px] text-amber-300/90">No stream matched — a synthesized preview is playing. Search below to pick one.</p>
         ) : source?.candidate ? (
           <div className="flex items-center gap-2.5">

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { artistLine, type PlaybackSource, type StreamCandidate, type UnifiedTrack } from '@core/types'
 import { useAudioEngineStore } from './useAudioEngineStore'
+import { EmbedPlaybackError } from '@/audio/YouTubeEmbedPlayer'
 import { toast } from './useToastStore'
 
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -34,14 +35,19 @@ interface PlayerState {
   /** Pins a different YouTube upload as the audio for the current track (`null` = automatic). */
   setStreamOverride(candidate: StreamCandidate | null): Promise<void>
   handleEnded(): Promise<void>
+  /** Keeps the current track going after a mid-playback failure (stream cut off, upload refused). */
+  recoverPlayback(): Promise<void>
 }
 
 /** After this many unplayable tracks in a row, stop auto-advancing. */
 const MAX_CONSECUTIVE_FAILURES = 3
 const RESTART_THRESHOLD_SECONDS = 3
+/** Lowest match score accepted when searching for more uploads after embeds were refused. */
+const MIN_FALLBACK_SCORE = 0.7
 
 let playToken = 0
 let consecutiveFailures = 0
+let recovering = false
 
 function shuffled(length: number, first: number): number[] {
   const rest = Array.from({ length }, (_, i) => i).filter((i) => i !== first)
@@ -81,6 +87,48 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     if (track) void window.electronAPI.stream.getPlaybackSource(track).catch(() => undefined)
   }
 
+  /**
+   * Plays a track through YouTube's official player, walking through alternative
+   * uploads when one refuses to play in other apps (or has been removed).
+   */
+  const playEmbedded = async (track: UnifiedTrack, source: PlaybackSource, token: number, startAt?: number): Promise<void> => {
+    const engine = useAudioEngineStore.getState()
+    const tried = new Set<string>()
+    let queue = [source.candidate, ...source.alternatives].filter((c): c is StreamCandidate => !!c)
+    let lastError: unknown = new Error('No YouTube upload available for this track')
+    let fetchedMore = false
+
+    while (true) {
+      for (const candidate of queue) {
+        if (tried.has(candidate.videoId) || token !== playToken) continue
+        tried.add(candidate.videoId)
+        try {
+          await engine.loadTrack(track.id, { kind: 'youtube', videoId: candidate.videoId }, { startAt })
+          if (token === playToken) {
+            set({
+              source: {
+                ...source,
+                mode: 'embed',
+                candidate,
+                alternatives: queue.filter((c) => c.videoId !== candidate.videoId)
+              }
+            })
+          }
+          return
+        } catch (error) {
+          lastError = error
+          if (!(error instanceof EmbedPlaybackError) || !error.tryAnotherUpload) throw error
+        }
+      }
+      // Every known upload refused; look further once (strong matches only, never a manual pin).
+      if (fetchedMore || source.isOverride || token !== playToken) throw lastError
+      fetchedMore = true
+      const more = await window.electronAPI.stream.getCandidates(track)
+      queue = more.filter((c) => c.score >= MIN_FALLBACK_SCORE && !tried.has(c.videoId))
+      if (!queue.length) throw lastError
+    }
+  }
+
   const start = async (position: number, startAt?: number): Promise<void> => {
     const { queue, order } = get()
     const track = queue[order[position]]
@@ -94,11 +142,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const source = await window.electronAPI.stream.getPlaybackSource(track)
       if (token !== playToken) return
       set({ source })
-      await useAudioEngineStore.getState().loadTrack(track.id, source.url, { startAt })
+      if (source.mode === 'embed') {
+        await playEmbedded(track, source, token, startAt)
+      } else {
+        try {
+          await useAudioEngineStore.getState().loadTrack(track.id, { kind: 'url', url: source.url as string }, { startAt })
+        } catch (error) {
+          // A direct stream that fails to start can still play through the official player.
+          if (source.mode !== 'stream' || !source.candidate || token !== playToken) throw error
+          await playEmbedded(track, { ...source, mode: 'embed' }, token, startAt)
+        }
+      }
       if (token !== playToken) return
       set({ status: 'ready' })
       consecutiveFailures = 0
-      if (source.isSynthetic) toast.info(`No stream found for “${track.title}” — playing a synthesized preview`)
+      if (source.mode === 'synthetic') toast.info(`No match found for “${track.title}” — playing a synthesized preview`)
       prefetchNext()
     } catch (error) {
       if (token !== playToken) return
@@ -197,6 +255,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         return
       }
       await get().next(true)
+    },
+
+    async recoverPlayback() {
+      const { current: track, source, status } = get()
+      if (!track || !source || status !== 'ready' || recovering) return
+      recovering = true
+      const token = playToken
+      const engine = useAudioEngineStore.getState()
+      const at = engine.transport.currentTime
+      try {
+        if (engine.backend === 'dsp' && source.mode === 'stream' && source.candidate) {
+          // The direct stream died mid-song: continue at the same spot in the official player.
+          toast.info('Stream interrupted — continuing with the YouTube player')
+          await playEmbedded(track, { ...source, mode: 'embed' }, token, at)
+        } else if (engine.backend === 'embed') {
+          // The current upload failed after starting: move on to the next one.
+          await playEmbedded(track, { ...source, candidate: undefined }, token, at)
+        } else {
+          throw new Error(engine.transport.error ?? 'Playback failed')
+        }
+      } catch (error) {
+        if (token !== playToken) return
+        set({ status: 'error', error: errorText(error) })
+        toast.error(`Can't continue “${track.title}”: ${errorText(error)}`)
+        if (get().position + 1 < get().order.length) await get().next(true)
+      } finally {
+        recovering = false
+      }
     }
   }
 })

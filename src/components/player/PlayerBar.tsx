@@ -58,7 +58,8 @@ function NowPlaying() {
     return <div className="text-[13px] text-zinc-600">Pick a track to start listening.</div>
   }
 
-  const viaYouTube = current.source !== 'ytmusic' && source?.candidate && !source.isSynthetic
+  const showSource = source?.mode === 'embed' || (current.source !== 'ytmusic' && source?.mode === 'stream')
+  const sourceLabel = source?.mode === 'embed' ? 'YouTube player' : 'via YT Music'
 
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -82,9 +83,9 @@ function NowPlaying() {
             <span className="truncate text-[11px] text-red-400" title={error ?? undefined}>
               Playback failed
             </span>
-          ) : source?.isSynthetic ? (
+          ) : source?.mode === 'synthetic' ? (
             <span className="truncate text-[11px] text-amber-300/90">Synth preview</span>
-          ) : viaYouTube ? (
+          ) : showSource ? (
             <button
               type="button"
               onClick={() => openStudio(true)}
@@ -92,7 +93,7 @@ function NowPlaying() {
               className="flex min-w-0 items-center gap-1 truncate text-[11px] text-zinc-500 hover:text-zinc-300"
             >
               {source?.isOverride && <Pin size={10} className="shrink-0 text-amber-300" />}
-              <span className="truncate">via YT Music</span>
+              <span className="truncate">{sourceLabel}</span>
             </button>
           ) : null}
         </div>
@@ -164,6 +165,7 @@ function RightControls() {
   const volume = useAudioEngineStore((s) => s.volume)
   const muted = useAudioEngineStore((s) => s.muted)
   const hydrated = useAudioEngineStore((s) => s.hydrated)
+  const embedMode = useAudioEngineStore((s) => s.backend === 'embed')
   const setVolume = useAudioEngineStore((s) => s.setVolume)
   const toggleMute = useAudioEngineStore((s) => s.toggleMute)
   const setPreamp = useAudioEngineStore((s) => s.setPreamp)
@@ -186,7 +188,8 @@ function RightControls() {
             type="button"
             role="radio"
             aria-checked={activePreset === id}
-            disabled={!hydrated}
+            disabled={!hydrated || (embedMode && id !== 'normal')}
+            title={embedMode && id !== 'normal' ? 'Needs a direct stream — not available in the YouTube player' : DSP_PRESETS[id].label}
             onClick={() => applyDspPreset(id)}
             className={cx(
               'rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
@@ -213,7 +216,7 @@ function RightControls() {
         label={`Pre-amp ${formatSigned(dsp.preampDb, 1, ' dB')}`}
         active={dsp.preampDb !== 0}
         onClick={() => setPreampOpen((o) => !o)}
-        disabled={!hydrated}
+        disabled={!hydrated || embedMode}
       >
         <Gauge size={17} />
       </IconButton>

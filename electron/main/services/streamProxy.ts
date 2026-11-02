@@ -10,6 +10,7 @@ const UPSTREAM_CHUNK = 1024 * 1024
 const MAX_STREAMS = 256
 const MAX_SYNTH_CACHE = 4
 const SYNTH_SCHEME = 'synth:'
+const SLICE_TIMEOUT_MS = 20_000
 
 /** Produces the upstream URL; `force` means the previous URL was rejected and must be replaced. */
 export type UpstreamResolver = (force: boolean) => Promise<string>
@@ -52,6 +53,8 @@ function parseRange(header: string | undefined, size: number): { start: number; 
  * expiry: rejected URLs are re-resolved transparently mid-playback.
  */
 export class StreamProxy {
+  /** Called when the upstream keeps refusing a stream after a fresh URL was resolved. */
+  onUpstreamBlocked: (() => void) | null = null
   private server: Server | null = null
   private port = 0
   private readonly entries = new Map<string, StreamEntry>()
@@ -180,7 +183,13 @@ export class StreamProxy {
       if (!(error instanceof UpstreamRejected)) throw error
       entry.upstream = await entry.resolve(true)
       entry.meta = undefined
-      return operation(entry.upstream)
+      try {
+        return await operation(entry.upstream)
+      } catch (retryError) {
+        // A fresh URL refused too: YouTube is withholding the rest of the stream.
+        if (retryError instanceof UpstreamRejected) this.onUpstreamBlocked?.()
+        throw retryError
+      }
     }
   }
 
@@ -241,7 +250,11 @@ export class StreamProxy {
 
   /** Streams bytes [from, to] of `url` into `res`; returns the number of bytes written. */
   private async pipeSlice(url: string, from: number, to: number, res: ServerResponse, signal: AbortSignal): Promise<number> {
-    const response = await fetch(url, { headers: { Range: `bytes=${from}-${to}` }, signal })
+    // A hung upstream must fail rather than leave the player waiting forever.
+    const response = await fetch(url, {
+      headers: { Range: `bytes=${from}-${to}` },
+      signal: AbortSignal.any([signal, AbortSignal.timeout(SLICE_TIMEOUT_MS)])
+    })
     if (response.status === 403 || response.status === 410) {
       await response.body?.cancel()
       throw new UpstreamRejected(response.status)

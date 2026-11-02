@@ -24,18 +24,24 @@ export function SeekBar({ disabled = false }: { disabled?: boolean }) {
     return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)) * duration
   }
 
+  // The ref is the source of truth: a quick click can deliver pointerup before
+  // React has re-rendered with the drag state set by pointerdown.
+  const draggingRef = useRef(false)
+
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (disabled || duration <= 0) return
-    event.currentTarget.setPointerCapture(event.pointerId)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    draggingRef.current = true
     setDrag(timeAt(event.clientX))
   }
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
     const t = timeAt(event.clientX)
     setHover(t)
-    if (drag !== null) setDrag(t)
+    if (draggingRef.current) setDrag(t)
   }
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (drag === null) return
+    if (!draggingRef.current) return
+    draggingRef.current = false
     seek(timeAt(event.clientX))
     setDrag(null)
   }

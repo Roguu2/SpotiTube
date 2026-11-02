@@ -49,11 +49,15 @@ export function useAppBootstrap(): void {
 
     // Auto-advance, OS playback state and the tray tooltip follow the transport.
     let wasEnded = false
+    let lastError: string | null = null
     let lastTraySignature = ''
     const offTransport = useAudioEngineStore.subscribe((state) => {
-      const { ended, isPlaying, duration, currentTime } = state.transport
+      const { ended, isPlaying, duration, currentTime, error } = state.transport
       if (ended && !wasEnded) void player().handleEnded()
       wasEnded = ended
+      // A failure after playback started (stream cut off, upload refused) is recovered, not left silent.
+      if (error && error !== lastError) void player().recoverPlayback()
+      lastError = error
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
