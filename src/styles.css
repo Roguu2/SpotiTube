@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
 
 @theme {
   --color-base: #09090b;
@@ -7,9 +8,7 @@
   --color-border: #26262d;
   --color-spotify: #1db954;
   --color-ytmusic: #ff0000;
-  --color-hybrid-from: #1db954;
-  --color-hybrid-to: #ff0000;
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 @layer base {
@@ -22,6 +21,17 @@
   body {
     @apply bg-base text-zinc-100 antialiased select-none overflow-hidden;
     font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  input,
+  textarea {
+    @apply select-text;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(255 255 255 / 0.6);
+    outline-offset: 2px;
   }
 
   ::-webkit-scrollbar {
@@ -37,6 +47,9 @@
   ::-webkit-scrollbar-thumb:hover {
     background-color: rgb(255 255 255 / 0.16);
   }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @utility app-drag {
@@ -45,4 +58,116 @@
 
 @utility app-no-drag {
   -webkit-app-region: no-drag;
+}
+
+@utility glass {
+  background: rgb(18 18 22 / 0.72);
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+/* ── Range sliders ─────────────────────────────────────────────────────── */
+
+.st-range {
+  --accent: #e4e4e7;
+  --track: rgb(255 255 255 / 0.12);
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 100%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.st-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.st-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--track) var(--fill-from),
+    var(--accent) var(--fill-from),
+    var(--accent) var(--fill-to),
+    var(--track) var(--fill-to)
+  );
+}
+
+.st-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  width: 12px;
+  margin-top: -4px;
+  border-radius: 9999px;
+  background: #fafafa;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+  transform: scale(0.85);
+  transition: transform 120ms ease;
+}
+
+.st-range:hover::-webkit-slider-thumb,
+.st-range:focus-visible::-webkit-slider-thumb,
+.st-range:active::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+
+.st-range:focus-visible {
+  outline: none;
+}
+
+.st-range:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 0.25),
+    0 1px 4px rgb(0 0 0 / 0.5);
+}
+
+/* Vertical variant (EQ bands): max at the top. */
+.st-range-vertical {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 16px;
+  height: 100%;
+}
+
+.st-range-vertical::-webkit-slider-runnable-track {
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(
+    to top,
+    var(--track) var(--fill-from),
+    var(--accent) var(--fill-from),
+    var(--accent) var(--fill-to),
+    var(--track) var(--fill-to)
+  );
+}
+
+.st-range-vertical::-webkit-slider-thumb {
+  margin-top: 0;
+  margin-left: -4px;
+}
+
+/* ── Now-playing bars ──────────────────────────────────────────────────── */
+
+@keyframes st-eq {
+  0%,
+  100% {
+    height: 25%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+
+.st-eq-bar {
+  height: 40%;
+  animation: st-eq 0.9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-eq-bar {
+    animation: none;
+  }
 }

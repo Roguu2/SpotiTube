@@ -1,33 +1,56 @@
-import { useEffect, useState } from 'react'
-import type { AppInfo } from '@core/ipc'
+import { useEffect, useRef } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
+import { Sidebar } from './components/layout/Sidebar'
+import { AmbientGlow } from './components/layout/AmbientGlow'
+import { LibraryView } from './components/library/LibraryView'
+import { PlaylistView } from './components/library/PlaylistView'
+import { SearchView } from './components/library/SearchView'
+import { PlayerBar } from './components/player/PlayerBar'
+import { AudioStudio } from './components/studio/AudioStudio'
+import { SettingsModal } from './components/settings/SettingsModal'
+import { Toasts } from './components/ui/Toasts'
+import { useAppBootstrap } from './hooks/useAppBootstrap'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useLibraryStore } from './store/useLibraryStore'
+import { useSettingsStore } from './store/useSettingsStore'
 
 export function App() {
-  const [info, setInfo] = useState<AppInfo | null>(null)
+  useAppBootstrap()
+  useKeyboardShortcuts()
 
+  const appInfo = useSettingsStore((s) => s.appInfo)
+  const studioOpen = useSettingsStore((s) => s.studioOpen)
+  const view = useLibraryStore((s) => s.view)
+  const mainRef = useRef<HTMLElement>(null)
+
+  // Every navigation starts at the top of the new view.
   useEffect(() => {
-    void window.electronAPI.app.getInfo().then(setInfo)
-  }, [])
+    mainRef.current?.scrollTo({ top: 0 })
+  }, [view])
 
-  if (!info) return <div className="h-full bg-base" />
+  if (!appInfo) return <div className="h-full bg-base" />
 
   return (
     <div className="flex h-full flex-col bg-base">
-      <TitleBar platform={info.platform} />
-      <main className="relative flex flex-1 items-center justify-center overflow-hidden">
-        <div className="pointer-events-none absolute -left-40 top-1/4 h-96 w-96 rounded-full bg-spotify/10 blur-3xl" />
-        <div className="pointer-events-none absolute -right-40 bottom-1/4 h-96 w-96 rounded-full bg-ytmusic/10 blur-3xl" />
-        <div className="relative text-center">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Spoti
-            <span className="bg-gradient-to-r from-spotify to-ytmusic bg-clip-text text-transparent">Tube</span>
-          </h1>
-          <p className="mt-2 text-sm text-zinc-500">
-            v{info.version} · {info.platform}
-            {info.isDev && ' · dev'}
-          </p>
-        </div>
-      </main>
+      <TitleBar platform={appInfo.platform} />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar />
+        <main
+          ref={mainRef}
+          // Scroll anchoring would shift the page as library sections load in above the fold.
+          className="relative isolate min-w-0 flex-1 overflow-y-auto bg-surface/40 [overflow-anchor:none]"
+        >
+          <AmbientGlow />
+          {view.kind === 'library' && <LibraryView />}
+          {view.kind === 'playlist' && <PlaylistView key={view.playlistId} playlistId={view.playlistId} />}
+          {view.kind === 'search' && <SearchView />}
+        </main>
+        <AnimatePresence initial={false}>{studioOpen && <AudioStudio key="studio" />}</AnimatePresence>
+      </div>
+      <PlayerBar />
+      <SettingsModal />
+      <Toasts />
     </div>
   )
 }

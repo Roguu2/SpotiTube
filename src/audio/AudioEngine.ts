@@ -273,6 +273,11 @@ export class AudioEngine {
     return this.pitchNode !== null
   }
 
+  /** Resolves once the processing graph is complete (worklet loaded or definitively unavailable). */
+  whenReady(): Promise<void> {
+    return this.ready
+  }
+
   // ── A-B loop ─────────────────────────────────────────────────────────────
 
   getLoop(): LoopRegion {

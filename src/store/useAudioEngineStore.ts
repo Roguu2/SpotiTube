@@ -169,9 +169,9 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
       const { volume, muted } = get()
       engine.setVolume(volume)
       engine.setMuted(muted)
-      engine.subscribe((transport) => {
-        set({ transport, pitchShiftAvailable: engine?.pitchShiftAvailable ?? false })
-      })
+      engine.subscribe((transport) => set({ transport }))
+      const e = engine
+      void e.whenReady().then(() => set({ pitchShiftAvailable: e.pitchShiftAvailable }))
       set({
         hydrated: true,
         dsp: engine.getSettings(),
