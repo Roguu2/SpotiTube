@@ -145,6 +145,8 @@ export class AppTray {
 
 type ControlGlyph = 'previous' | 'play' | 'pause' | 'next'
 
+const THUMBAR_READY_DELAY_MS = 800
+
 /** Draws a white transport glyph as a 16pt (32 px @2x) bitmap, anti-aliased by supersampling. */
 function createControlIcon(glyph: ControlGlyph): NativeImage {
   const size = 32
@@ -196,6 +198,7 @@ function createControlIcon(glyph: ControlGlyph): NativeImage {
  */
 export class TaskbarControls {
   private window: BrowserWindow | null = null
+  private thumbarReady = false
   private info: NowPlayingInfo | null = null
   private readonly icons = new Map<ControlGlyph, NativeImage>()
   private readonly unsubscribe: () => void
@@ -207,13 +210,22 @@ export class TaskbarControls {
     })
   }
 
-  /** Binds to a (new) main window; Windows drops thumbnail buttons when a window is re-created or hidden. */
+  /** Binds to a (new) main window. */
   attach(window: BrowserWindow): void {
     this.window = window
+    this.thumbarReady = false
     // The page title would otherwise overwrite the song shown in the taskbar.
     window.on('page-title-updated', (event) => event.preventDefault())
-    window.on('show', () => this.render())
-    window.once('ready-to-show', () => this.render())
+    // Thumbnail buttons can only be added once the window's taskbar button exists, which
+    // Windows creates asynchronously after the window is first shown. Buttons "added"
+    // earlier are silently dropped, and Electron only sends updates afterwards — so the
+    // first call must wait until then.
+    window.once('show', () => {
+      setTimeout(() => {
+        this.thumbarReady = true
+        this.render()
+      }, THUMBAR_READY_DELAY_MS)
+    })
     this.render()
   }
 
@@ -236,7 +248,7 @@ export class TaskbarControls {
 
     if (window) {
       window.setTitle(info ? `${info.title} · ${info.artist}` : 'SpotiTube')
-      if (process.platform === 'win32') {
+      if (process.platform === 'win32' && this.thumbarReady) {
         const disabled: Electron.ThumbarButton['flags'] = info ? [] : ['disabled']
         window.setThumbarButtons([
           {
