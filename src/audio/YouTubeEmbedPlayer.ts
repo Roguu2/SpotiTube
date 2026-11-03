@@ -71,6 +71,20 @@ const IDLE: TransportState = {
   error: null
 }
 
+/** Quietest level the embed plays at: YouTube treats every volume from 1 to 5 as 5. */
+const MIN_EMBED_VOLUME = 5
+
+/**
+ * Maps the 0–1 slider to YouTube's whole-number 5–100 volume (linear gain) on an
+ * exponential curve, so every slider step changes loudness by the same number of
+ * decibels (about 2.6 dB per 10 %) instead of the bottom fifth of the slider
+ * collapsing onto YouTube's floor.
+ */
+export function embedVolume(volume: number): number {
+  const v = Math.min(1, Math.max(0, volume))
+  return Math.round(MIN_EMBED_VOLUME * (100 / MIN_EMBED_VOLUME) ** v)
+}
+
 /**
  * Drives YouTube's official embedded player through its postMessage protocol.
  * No YouTube script runs in SpotiTube's own window: the player lives in a
@@ -283,15 +297,12 @@ export class YouTubeEmbedPlayer {
   }
 
   private applyAudio(): void {
-    // Same perceptual curve as the DSP engine so the volume slider feels identical.
-    const level = Math.round(this.volume * this.volume * 100)
     if (this.muted || this.volume <= 0) {
       // YouTube treats "volume 0 + unMute" as unmuted and bumps the volume back up to 5,
       // so silence has to be an explicit mute.
       this.command('mute')
     } else {
-      // Tiny slider values would round to 0 and fall into the same trap.
-      this.command('setVolume', [Math.max(1, level)])
+      this.command('setVolume', [embedVolume(this.volume)])
       this.command('unMute')
     }
     this.command('setPlaybackRate', [this.rate])

@@ -247,7 +247,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         const indices = fresh.map((_, i) => state.queue.length + i)
         set({
           queue: [...state.queue, ...fresh],
-          order: [...state.order, ...indices],
+          order: [...state.order, ...(state.shuffle ? shuffleInPlace([...indices]) : indices)],
           autoplay: [...state.autoplay, ...indices],
           autoplaySeed: seed
         })
@@ -443,14 +443,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     toggleShuffle() {
       const { shuffle, order, position, manual, autoplay } = get()
-      // History, tracks the user queued and autoplay picks keep their place; only the rest of the playlist reorders.
+      // History and tracks the user queued keep their place. The rest of the playlist and the
+      // autoplay picks reorder separately, so autoplay still only starts once the playlist is done.
       const head = order.slice(0, position + 1)
       const upcoming = order.slice(position + 1)
       const queued = upcoming.filter((i) => manual.includes(i))
       const suggested = upcoming.filter((i) => autoplay.includes(i))
       const rest = upcoming.filter((i) => !manual.includes(i) && !autoplay.includes(i))
       const reordered = shuffle ? unshuffled(rest, currentIndex()) : shuffleInPlace([...rest])
-      set({ shuffle: !shuffle, order: [...head, ...queued, ...reordered, ...suggested] })
+      // Autoplay picks are appended in the order they were suggested, i.e. by queue index.
+      const picks = shuffle ? [...suggested].sort((a, b) => a - b) : shuffleInPlace([...suggested])
+      set({ shuffle: !shuffle, order: [...head, ...queued, ...reordered, ...picks] })
     },
 
     cycleRepeat() {
