@@ -16,6 +16,9 @@
 - **Unified library** — Spotify and YouTube Music playlists in one view, every card, sidebar item and track row
   colour-badged by source (Spotify green, YT Music red, Hybrid gradient). Filter tabs: **All**, **Spotify only**,
   **YT Music only** and **Split view** (both catalogs in parallel columns).
+- **Likes** — the heart in the player bar, Now playing and the mini player saves songs to a **Liked songs** playlist
+  (it syncs like any hybrid playlist) and, when the account is connected, to Spotify's Liked Songs or your YouTube
+  Music likes. Spotify accounts connected before 0.4 need to reconnect once to allow it.
 - **Hybrid playlists** — mix tracks from both services into local SpotiTube playlists.
 - **Side-by-side search** across both catalogs.
 - **Plays everything through YouTube Music** — Spotify tracks are matched to the best YouTube Music upload

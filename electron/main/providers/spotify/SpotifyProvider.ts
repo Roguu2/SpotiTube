@@ -196,6 +196,20 @@ export class SpotifyProvider implements IMusicProvider {
       })
   }
 
+  /** Saves a track to (or removes it from) the user's Liked Songs. */
+  async setSaved(sourceTrackId: string, saved: boolean): Promise<void> {
+    const url = `${API}/me/library?${new URLSearchParams({ uris: `spotify:track:${sourceTrackId}` })}`
+    const send = async (token: string): Promise<Response> =>
+      fetch(url, { method: saved ? 'PUT' : 'DELETE', headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) })
+    let response = await send(await this.auth.getAccessToken())
+    if (response.status === 401) {
+      await this.auth.refresh()
+      response = await send(await this.auth.getAccessToken())
+    }
+    if (response.status === 403) throw new Error('Reconnect Spotify in Settings to let SpotiTube save likes there')
+    if (!response.ok) throw new HttpError(response.status, url, await response.text().catch(() => ''))
+  }
+
   private async paginate<T>(path: string, limit: number): Promise<T[]> {
     const items: T[] = []
     let next: string | null = path

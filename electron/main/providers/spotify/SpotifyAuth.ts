@@ -6,7 +6,14 @@ import { SPOTIFY_REDIRECT_PORT, SPOTIFY_REDIRECT_URI, getSecret, setSecret } fro
 
 const AUTHORIZE_URL = 'https://accounts.spotify.com/authorize'
 const TOKEN_URL = 'https://accounts.spotify.com/api/token'
-const SCOPES = ['playlist-read-private', 'playlist-read-collaborative', 'user-library-read', 'user-read-private']
+const SCOPES = [
+  'playlist-read-private',
+  'playlist-read-collaborative',
+  'user-library-read',
+  // Hearts save to the user's Liked Songs.
+  'user-library-modify',
+  'user-read-private'
+]
 const LOGIN_TIMEOUT_MS = 5 * 60_000
 /** Refresh slightly before expiry so in-flight requests never carry a stale token. */
 const EXPIRY_SKEW_MS = 60_000

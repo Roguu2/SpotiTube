@@ -83,7 +83,10 @@ export const IpcChannels = {
   syncApplied: 'sync:applied',
 
   presenceUpdate: 'presence:update',
-  mediaNotifyTrack: 'media:notify-track'
+  mediaNotifyTrack: 'media:notify-track',
+
+  likesGetIds: 'likes:get-ids',
+  likesSet: 'likes:set'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -206,6 +209,14 @@ export interface UpdateState {
 export type AppSettingsPatch = Partial<Omit<AppSettings, 'spotifyRedirectUri'>>
 
 export type MediaCommand = 'play-pause' | 'next' | 'previous' | 'stop'
+
+export interface LikeResult {
+  liked: boolean
+  /** The service the like was also saved to, if any. */
+  service: 'spotify' | 'ytmusic' | null
+  /** Why saving it to the service failed; the like is kept in SpotiTube either way. */
+  serviceError?: string
+}
 
 /** A new song, for the system notification. */
 export interface TrackNotice {
@@ -435,6 +446,11 @@ export interface ElectronAPI {
     getSession(deviceId: string): Promise<PlaybackSession | null>
     onStatusChange(listener: (status: SyncStatus) => void): Unsubscribe
     onApplied(listener: (applied: SyncApplied) => void): Unsubscribe
+  }
+  likes: {
+    /** Ids of the tracks in Liked songs. */
+    getIds(): Promise<string[]>
+    set(track: UnifiedTrack, liked: boolean): Promise<LikeResult>
   }
   presence: {
     /** Turns the Discord status on or off and sets what it shows. */

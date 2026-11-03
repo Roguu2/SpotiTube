@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Maximize2, X } from 'lucide-react'
 import { artistLine } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
+import { LikeButton } from '@/components/ui/LikeButton'
 import { Backdrop } from '@/components/nowplaying/Backdrop'
 import { useEmbedActive } from './EmbedMiniPlayer'
 import { Transport, VolumeControl } from './PlayerBar'
@@ -57,7 +58,10 @@ export function MiniPlayer() {
       </div>
 
       <div className="mt-3 min-w-0 px-5 text-center">
-        <div className="truncate text-[15px] font-semibold text-white">{current?.title ?? 'Nothing playing'}</div>
+        <div className="flex min-w-0 items-center justify-center gap-1.5">
+          <div className="truncate text-[15px] font-semibold text-white">{current?.title ?? 'Nothing playing'}</div>
+          {current && <LikeButton track={current} size={15} className="size-6" />}
+        </div>
         <div className="truncate text-[12.5px] text-white/60">
           {current ? artistLine(current) : 'Pick a track in the full window.'}
         </div>

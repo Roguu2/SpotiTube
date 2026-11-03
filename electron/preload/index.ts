@@ -112,6 +112,10 @@ const electronAPI: ElectronAPI = {
     onStatusChange: (listener) => subscribe<[SyncStatus]>(IpcChannels.syncStatusChanged, listener),
     onApplied: (listener) => subscribe<[SyncApplied]>(IpcChannels.syncApplied, listener)
   },
+  likes: {
+    getIds: () => invoke(IpcChannels.likesGetIds),
+    set: (track, liked) => invoke(IpcChannels.likesSet, track, liked)
+  },
   presence: {
     update: (enabled, info) => ipcRenderer.send(IpcChannels.presenceUpdate, enabled, info)
   },

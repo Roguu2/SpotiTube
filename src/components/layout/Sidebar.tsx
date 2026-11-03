@@ -9,7 +9,7 @@ import { SourceBadge } from '@/components/ui/SourceBadge'
 import { useLibraryStore, type LibraryFilter } from '@/store/useLibraryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
-import { cx } from '@/lib/format'
+import { cx, formatTrackCount } from '@/lib/format'
 
 const FILTERS: { id: Exclude<LibraryFilter, 'split'>; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -185,7 +185,7 @@ function SidebarPlaylist({ playlist, active, playing, onClick }: { playlist: Uni
           </span>
           <span className="flex items-center gap-1.5 text-[11.5px] text-zinc-500">
             <SourceBadge source={playlist.source} variant="tag" />
-            <span className="truncate">{playlist.trackCount} tracks</span>
+            <span className="truncate">{formatTrackCount(playlist.trackCount)}</span>
           </span>
         </span>
         {playing && <Volume2 size={14} className="shrink-0 text-spotify" />}

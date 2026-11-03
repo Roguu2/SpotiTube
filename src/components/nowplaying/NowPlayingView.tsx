@@ -6,6 +6,7 @@ import { Artwork } from '@/components/ui/Artwork'
 import { IconButton } from '@/components/ui/IconButton'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
+import { LikeButton } from '@/components/ui/LikeButton'
 import { useEmbedActive } from '@/components/player/EmbedMiniPlayer'
 import { LyricsPanel } from './LyricsPanel'
 import { Backdrop } from './Backdrop'
@@ -110,6 +111,7 @@ export function NowPlayingView() {
                 <h2 className="line-clamp-2 text-[clamp(26px,2.8vw,42px)] leading-[1.08] font-extrabold tracking-tight text-white">
                   {current.title}
                 </h2>
+                <LikeButton track={current} size={22} className="mt-1 size-8" />
                 <AddToHybridMenu tracks={[current]} className="mt-1 size-8 shrink-0" />
               </div>
               <p className="mt-1.5 truncate text-[clamp(15px,1.3vw,19px)] text-white/70">{artistLine(current)}</p>

@@ -21,6 +21,7 @@ import { SourceBadge } from '@/components/ui/SourceBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Slider } from '@/components/ui/Slider'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
+import { LikeButton } from '@/components/ui/LikeButton'
 import { SeekBar } from './SeekBar'
 import { SleepTimerButton } from './SleepTimerButton'
 import { usePlayerStore } from '@/store/usePlayerStore'
@@ -72,6 +73,7 @@ function NowPlaying() {
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-[14px] font-semibold text-zinc-100">{current.title}</span>
+          <LikeButton track={current} className="size-6" />
           <AddToHybridMenu tracks={[current]} className="size-6" />
         </div>
         <div className="truncate text-[12.5px] text-zinc-400">{artistLine(current)}</div>

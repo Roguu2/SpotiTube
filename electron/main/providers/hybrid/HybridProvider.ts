@@ -10,6 +10,8 @@ import { getHybridPlaylists, saveHybridPlaylists, type HybridPlaylistRecord } fr
 import { gradientArtwork } from '../demo/artwork'
 
 const MAX_NAME_LENGTH = 100
+/** The playlist hearts go into. Fixed, so every synced computer agrees on it. */
+export const LIKED_PLAYLIST_ID = 'liked'
 
 function cleanName(name: string): string {
   const trimmed = name.trim().slice(0, MAX_NAME_LENGTH)
@@ -90,6 +92,37 @@ export class HybridProvider implements IMusicProvider {
     return this.mutate(sourcePlaylistId, (record) => ({
       ...record,
       tracks: record.tracks.filter((t) => !remove.has(t.id))
+    }))
+  }
+
+  /** Ids of the tracks in Liked songs. */
+  likedTrackIds(): string[] {
+    return getHybridPlaylists().find((p) => p.id === LIKED_PLAYLIST_ID)?.tracks.map((t) => t.id) ?? []
+  }
+
+  /** Hearts or un-hearts a track: Liked songs is created on the first like, newest likes first. */
+  setLiked(track: UnifiedTrack, liked: boolean): void {
+    const playlists = getHybridPlaylists()
+    const record = playlists.find((p) => p.id === LIKED_PLAYLIST_ID)
+    if (!record) {
+      if (!liked) return
+      // createdAt 0 keeps it first in the list on every computer.
+      const created: HybridPlaylistRecord = {
+        id: LIKED_PLAYLIST_ID,
+        name: 'Liked songs',
+        description: 'Songs you ♥ in SpotiTube',
+        createdAt: 0,
+        updatedAt: Date.now(),
+        tracks: [track]
+      }
+      saveHybridPlaylists([created, ...playlists])
+      return
+    }
+    const has = record.tracks.some((t) => t.id === track.id)
+    if (has === liked) return
+    this.mutate(LIKED_PLAYLIST_ID, (r) => ({
+      ...r,
+      tracks: liked ? [track, ...r.tracks] : r.tracks.filter((t) => t.id !== track.id)
     }))
   }
 

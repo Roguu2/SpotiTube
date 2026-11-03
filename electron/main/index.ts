@@ -10,6 +10,7 @@ import { registerHistoryIpc } from './ipc/history'
 import { registerLyricsIpc } from './ipc/lyrics'
 import { initRemote, stopRemote } from './remote'
 import { registerSyncIpc } from './ipc/sync'
+import { registerLikesIpc } from './ipc/likes'
 import { flushSync } from './services/sync'
 import { DiscordPresence } from './services/discord'
 import { notifyTrack } from './services/trackNotifications'
@@ -108,6 +109,7 @@ async function bootstrap(): Promise<void> {
   const providers = registry
   initRemote((query) => providers.search(query))
   registerSyncIpc()
+  registerLikesIpc({ hybrid, spotify, youtube })
 
   const presence = new DiscordPresence()
   ipcMain.on(IpcChannels.presenceUpdate, (event, enabled: unknown, info: PresenceInfo | null) => {
