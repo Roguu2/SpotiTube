@@ -31,7 +31,7 @@ interface PersistedState {
   streamOverrides: Record<string, StreamCandidate>
 }
 
-export type SecretKey = 'spotifyTokens' | 'ytmusicCookie'
+export type SecretKey = 'spotifyTokens' | 'ytmusicCookie' | 'remoteToken'
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   spotifyClientId: '',
@@ -42,7 +42,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   autoUpdate: true,
   restoreSession: true,
   autoplay: true,
-  smoothFades: true
+  smoothFades: true,
+  remoteEnabled: false
 }
 
 const store = new Store<PersistedState>({
@@ -73,6 +74,7 @@ export function updateSettings(patch: AppSettingsPatch): AppSettings {
   if (patch.restoreSession !== undefined) next.restoreSession = patch.restoreSession
   if (patch.autoplay !== undefined) next.autoplay = patch.autoplay
   if (patch.smoothFades !== undefined) next.smoothFades = patch.smoothFades
+  if (patch.remoteEnabled !== undefined) next.remoteEnabled = patch.remoteEnabled
   store.set('settings', next)
   return getSettings()
 }

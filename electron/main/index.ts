@@ -7,6 +7,7 @@ import { registerDspIpc } from './ipc/dsp'
 import { registerUpdateIpc } from './ipc/updates'
 import { registerHistoryIpc } from './ipc/history'
 import { registerLyricsIpc } from './ipc/lyrics'
+import { initRemote, stopRemote } from './remote'
 import { UpdateService } from './services/updater'
 import { getSettings } from './services/store'
 import { YouTubeClient } from './services/youtube'
@@ -97,6 +98,8 @@ async function bootstrap(): Promise<void> {
   registerDspIpc()
   registerHistoryIpc()
   registerLyricsIpc()
+  const providers = registry
+  initRemote((query) => providers.search(query))
 
   const updates = new UpdateService()
   registerUpdateIpc(updates)
@@ -115,6 +118,7 @@ async function bootstrap(): Promise<void> {
 
   app.on('will-quit', () => {
     unregisterMediaKeys()
+    stopRemote()
     updates.stop()
     proxy.stop()
     tray?.destroy()

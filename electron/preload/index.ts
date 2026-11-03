@@ -5,6 +5,8 @@ import {
   type IpcChannel,
   type IpcResult,
   type MediaCommand,
+  type RemoteCommand,
+  type RemoteStatus,
   type UpdateState
 } from '@core/ipc'
 
@@ -97,6 +99,14 @@ const electronAPI: ElectronAPI = {
   },
   lyrics: {
     get: (track) => invoke(IpcChannels.lyricsGet, track)
+  },
+  remote: {
+    getStatus: () => invoke(IpcChannels.remoteGetStatus),
+    setEnabled: (enabled) => invoke(IpcChannels.remoteSetEnabled, enabled),
+    resetPairing: () => invoke(IpcChannels.remoteResetPairing),
+    onStatusChange: (listener) => subscribe<[RemoteStatus]>(IpcChannels.remoteStatusChanged, listener),
+    onCommand: (listener) => subscribe<[RemoteCommand]>(IpcChannels.remoteCommand, listener),
+    publishState: (state) => ipcRenderer.send(IpcChannels.remotePublishState, state)
   }
 }
 

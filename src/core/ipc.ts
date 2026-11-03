@@ -3,7 +3,7 @@
  * preload script exposes on `window.electronAPI`.
  */
 
-import type { PlaybackSource, StreamCandidate, UnifiedPlaylist, UnifiedTrack } from './types'
+import type { PlaybackSource, SourceId, StreamCandidate, UnifiedPlaylist, UnifiedTrack } from './types'
 import type { DspPersistedState, DspSettings, EqPreset, LoopRegion, TrackDspProfile } from './dsp'
 
 export const IpcChannels = {
@@ -65,7 +65,14 @@ export const IpcChannels = {
   historySaveSession: 'history:save-session',
   historySavePosition: 'history:save-position',
 
-  lyricsGet: 'lyrics:get'
+  lyricsGet: 'lyrics:get',
+
+  remoteGetStatus: 'remote:get-status',
+  remoteSetEnabled: 'remote:set-enabled',
+  remoteResetPairing: 'remote:reset-pairing',
+  remoteStatusChanged: 'remote:status-changed',
+  remoteCommand: 'remote:command',
+  remotePublishState: 'remote:publish-state'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -124,6 +131,8 @@ export interface AppSettings {
   autoplay: boolean
   /** Short volume fades when skipping, pausing and resuming. */
   smoothFades: boolean
+  /** Serve the phone remote on the local network. */
+  remoteEnabled: boolean
 }
 
 /** Where a play started from, as shown in the queue and in Recently played. */
@@ -203,6 +212,65 @@ export interface Lyrics {
   instrumental: boolean
   /** Length of the recording the lyrics were timed against. */
   durationSec: number | null
+}
+
+/** A track as the phone remote shows it. */
+export interface RemoteTrack {
+  id: string
+  title: string
+  artists: string
+  album?: string
+  artworkUrl?: string
+  durationMs: number
+  source: SourceId
+}
+
+export interface RemoteQueueItem {
+  /** Position in the play order; jumping there plays it. */
+  position: number
+  kind: 'queued' | 'autoplay' | 'up-next'
+  track: RemoteTrack
+}
+
+/** What the phone remote shows, published by the renderer a few times per second at most. */
+export interface RemoteState {
+  track: RemoteTrack | null
+  isPlaying: boolean
+  isBuffering: boolean
+  /** Seconds into the track when the snapshot was taken. */
+  position: number
+  duration: number
+  volume: number
+  muted: boolean
+  shuffle: boolean
+  repeat: 'off' | 'all' | 'one'
+  context: string | null
+  /** The next few upcoming entries. */
+  queue: RemoteQueueItem[]
+  /** All upcoming entries, including those not listed. */
+  queueTotal: number
+}
+
+/** A command from the phone, with search results already resolved to full tracks by the main process. */
+export type RemoteCommand =
+  | { type: 'toggle' | 'next' | 'previous' | 'mute' | 'shuffle' | 'repeat' }
+  | { type: 'seek'; seconds: number }
+  | { type: 'volume'; volume: number }
+  | { type: 'jump'; position: number }
+  | { type: 'play-now' | 'play-next' | 'add-to-queue' | 'radio'; track: UnifiedTrack }
+
+export interface RemoteStatus {
+  enabled: boolean
+  running: boolean
+  /** Address to open on the phone (without the pairing secret). */
+  url: string | null
+  /** Other addresses this computer has, if the main one isn't reachable. */
+  otherUrls: string[]
+  /** QR code (data URL) that opens the remote and pairs the phone in one scan. */
+  qrDataUrl: string | null
+  /** Phones connected right now. */
+  clients: number
+  error: string | null
 }
 
 export interface ElectronAPI {
@@ -286,5 +354,14 @@ export interface ElectronAPI {
   lyrics: {
     /** `null` when no lyrics are known for the track. */
     get(track: UnifiedTrack): Promise<Lyrics | null>
+  }
+  remote: {
+    getStatus(): Promise<RemoteStatus>
+    setEnabled(enabled: boolean): Promise<RemoteStatus>
+    /** New pairing secret: every paired phone has to scan the QR code again. */
+    resetPairing(): Promise<RemoteStatus>
+    onStatusChange(listener: (status: RemoteStatus) => void): Unsubscribe
+    onCommand(listener: (command: RemoteCommand) => void): Unsubscribe
+    publishState(state: RemoteState): void
   }
 }

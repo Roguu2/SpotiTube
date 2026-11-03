@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowDownToLine, Check, Copy, ExternalLink, LoaderCircle, RotateCw } from 'lucide-react'
+import { ArrowDownToLine, Check, Copy, ExternalLink, LoaderCircle, RotateCw, Smartphone } from 'lucide-react'
 import type { UpdateState } from '@core/ipc'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/IconButton'
@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/store/useSettingsStore'
 import { useUpdateStore } from '@/store/useUpdateStore'
 import { useHistoryStore } from '@/store/useHistoryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
+import { useRemoteStore } from '@/store/useRemoteStore'
 import { cx } from '@/lib/format'
 
 export function SettingsModal() {
@@ -21,6 +22,7 @@ export function SettingsModal() {
         <SpotifySection />
         <YouTubeMusicSection />
         <PlaybackSection />
+        <RemoteSection />
         <UpdatesSection />
         <section className="px-6 py-4 text-[12px] text-zinc-500">
           SpotiTube {appInfo ? `v${appInfo.version}` : ''} · Credentials and cookies are encrypted with your operating
@@ -228,6 +230,81 @@ function SettingToggle({ label, description, checked, onChange }: { label: strin
         <span className={cx('absolute top-0.5 size-4 rounded-full bg-white shadow transition-[left]', checked ? 'left-[18px]' : 'left-0.5')} />
       </button>
     </label>
+  )
+}
+
+function RemoteSection() {
+  const status = useRemoteStore((s) => s.status)
+  const busy = useRemoteStore((s) => s.busy)
+  const setEnabled = useRemoteStore((s) => s.setEnabled)
+  const resetPairing = useRemoteStore((s) => s.resetPairing)
+  const [copied, setCopied] = useState(false)
+
+  if (!status) return null
+  const live = status.enabled && status.running
+
+  const copy = (): void => {
+    if (!status.url) return
+    void navigator.clipboard.writeText(status.url).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  return (
+    <section className="space-y-4 px-6 py-5">
+      <h3 className="flex items-center gap-2.5 text-[14px] font-semibold">
+        <Smartphone size={15} className="text-zinc-400" /> Phone remote
+        {live && (
+          <span className="rounded-full bg-white/8 px-2 py-0.5 text-[11px] font-medium text-zinc-300">
+            {status.clients === 0 ? 'No phone connected' : status.clients === 1 ? '1 phone connected' : `${status.clients} phones connected`}
+          </span>
+        )}
+      </h3>
+      <SettingToggle
+        label="Control SpotiTube from your phone"
+        description="Your phone's browser becomes a remote — play, skip, volume, queue and search — while it's on the same Wi-Fi."
+        checked={status.enabled}
+        onChange={(v) => void setEnabled(v)}
+      />
+      {busy && (
+        <p className="flex items-center gap-2 text-[12px] text-zinc-500">
+          <LoaderCircle size={13} className="animate-spin" /> Starting…
+        </p>
+      )}
+      {status.enabled && status.error && <p className="text-[12px] text-red-400">{status.error}</p>}
+      {live && status.qrDataUrl && status.url && (
+        <div className="flex gap-5 rounded-lg bg-black/25 p-4 ring-1 ring-white/6">
+          <img src={status.qrDataUrl} alt="QR code that opens and pairs the remote" className="size-36 shrink-0 rounded-lg bg-white p-1.5" />
+          <div className="min-w-0 space-y-2.5 text-[12.5px] text-zinc-400">
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>Connect your phone to the same Wi-Fi as this computer.</li>
+              <li>Scan the code with the phone&apos;s camera — that opens and pairs the remote.</li>
+              <li>Add it to the home screen for one-tap access next time.</li>
+            </ol>
+            <button
+              type="button"
+              onClick={copy}
+              title="Copy address"
+              className="flex max-w-full items-center gap-1.5 truncate rounded-md bg-white/6 px-2 py-1 font-mono text-[11.5px] text-zinc-300 hover:bg-white/10"
+            >
+              {copied ? <Check size={12} className="shrink-0 text-spotify" /> : <Copy size={12} className="shrink-0" />}
+              <span className="truncate">{status.url}</span>
+            </button>
+            {status.otherUrls.length > 0 && (
+              <p className="text-[11px] text-zinc-500">Not loading? Other addresses of this computer: {status.otherUrls.join(', ')}</p>
+            )}
+            <p className="text-[11px] text-zinc-500">
+              Anyone on your network with this code can control playback. If Windows asks, allow SpotiTube on private
+              networks.{' '}
+              <button type="button" onClick={() => void resetPairing()} className="text-zinc-300 underline-offset-2 hover:underline">
+                Reset pairing
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 

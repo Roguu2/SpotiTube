@@ -19,6 +19,7 @@ import { Toasts } from './components/ui/Toasts'
 import { useAppBootstrap } from './hooks/useAppBootstrap'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePlaybackPersistence } from './hooks/usePlaybackPersistence'
+import { useRemoteBridge } from './hooks/useRemoteBridge'
 import { useLibraryStore } from './store/useLibraryStore'
 import { useSettingsStore } from './store/useSettingsStore'
 
@@ -26,6 +27,7 @@ export function App() {
   useAppBootstrap()
   useKeyboardShortcuts()
   usePlaybackPersistence()
+  useRemoteBridge()
 
   const appInfo = useSettingsStore((s) => s.appInfo)
   const miniMode = useSettingsStore((s) => s.miniMode)

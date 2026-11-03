@@ -27,6 +27,9 @@
 - **Now playing & synced lyrics** — click the cover in the player bar (or `Ctrl/Cmd + L`) for a full-screen view
   over a backdrop made from the album art, with time-synced lyrics from [LRCLIB](https://lrclib.net) that follow the
   song. Click a line to jump there; nudge the sync if a version's timing differs.
+- **Phone remote** — turn it on in Settings, scan the QR code, and your phone's browser becomes a remote: cover,
+  play/pause/skip/seek, volume, shuffle/repeat, the queue, and search with *Play now / Play next / Add to queue /
+  Start radio*. Nothing to install; add it to the home screen for one-tap access. See [Phone remote](#phone-remote).
 - **Mini player** — shrink the window into a small always-on-top player (`Ctrl/Cmd + Shift + M` or the
   picture-in-picture button); YouTube's player stands in for the cover. It remembers where you put it.
 - **Autoplay & radio** — when the queue runs out, SpotiTube keeps going with similar tracks (shown as *Autoplay* at the
@@ -129,6 +132,19 @@ same position.
 
 When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.js) fails outright, SpotiTube can use
 [yt-dlp](https://github.com/yt-dlp/yt-dlp) if it is installed on your `PATH` or configured in Settings.
+
+## Phone remote
+
+SpotiTube serves a small web page on your local network (port `48620`, or the next free one) while the remote is on.
+Scanning the QR code in **Settings → Phone remote** opens it and pairs the phone in one go.
+
+- **Off by default.** Nothing listens on the network until you turn it on.
+- **Paired phones only.** The QR code carries a random secret (kept in your OS keychain). Every request needs it, wrong
+  guesses are rate-limited, and **Reset pairing** issues a new one, which unpairs every phone at once.
+- **Local network only.** Requests must address the computer by IP, which blocks DNS-rebinding tricks from websites.
+  The page loads no third-party scripts, and the phone can only play tracks from its own search results.
+- The connection is plain HTTP on your Wi-Fi, so only turn it on in networks you trust. On Windows, allow SpotiTube on
+  *private* networks when the firewall asks.
 
 ## Keyboard shortcuts
 
