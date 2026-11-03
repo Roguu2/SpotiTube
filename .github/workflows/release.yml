@@ -81,6 +81,8 @@ jobs:
             target: --win
           - os: macos-latest
             target: --mac
+          - os: ubuntu-latest
+            target: --linux
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: false
       GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
@@ -114,7 +116,7 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           assets=$(gh release view "$GITHUB_REF_NAME" --repo "$RELEASES_REPO" --json assets --jq '.assets[].name')
           echo "$assets"
-          for required in latest.yml latest-mac.yml "SpotiTube-$version-Setup.exe" "SpotiTube-$version-universal.dmg"; do
+          for required in latest.yml latest-mac.yml latest-linux.yml "SpotiTube-$version-Setup.exe"             "SpotiTube-$version-universal.dmg" "SpotiTube-$version-x86_64.AppImage" "SpotiTube-$version-amd64.deb"; do
             if ! grep -qx "$required" <<< "$assets"; then
               echo "::error::Release is missing $required — leaving it as a draft"
               exit 1

@@ -59,7 +59,7 @@
 
 ## Getting started
 
-**Requirements:** Node.js 22.12+ (24 LTS recommended) and npm. Windows 10/11 or macOS 12+ for running the app.
+**Requirements:** Node.js 22.12+ (24 LTS recommended) and npm. Windows 10/11, macOS 12+ or a 64-bit Linux desktop for running the app.
 
 ```bash
 git clone https://github.com/Roguu2/SpotiTube.git
@@ -81,6 +81,7 @@ npm run dev
 | `npm start` | Run the production bundle from `out/` |
 | `npm run build:win` | Build and package a Windows NSIS installer into `release/<version>/` |
 | `npm run build:mac` | Build and package a universal macOS `.dmg` (must run on macOS) |
+| `npm run build:linux` | Build a Linux `.AppImage` and `.deb` (run on Linux) |
 | `npm run build:unpack` | Build and package without an installer (quick local check) |
 | `npm run icon` | Regenerate `build/icon.png` from `scripts/generate-icon.mjs` |
 
@@ -167,15 +168,15 @@ Scanning the QR code in **Settings → Phone remote** opens it and pairs the pho
 
 ## Releases and CI
 
-Two GitHub Actions workflows build on `windows-latest` and `macos-latest`:
+Two GitHub Actions workflows build on `windows-latest`, `macos-latest` and `ubuntu-latest`:
 
 - **`build.yml`** — on every push to `main` and on pull requests: type-check, bundle, package, and upload the
-  `.exe` and `.dmg` as workflow artifacts (kept 14 days).
-- **`release.yml`** — on a `v*` tag: builds both installers and publishes them to the public
+  `.exe`, `.dmg`, `.AppImage` and `.deb` as workflow artifacts (kept 14 days).
+- **`release.yml`** — on a `v*` tag: builds every installer and publishes them to the public
   [SpotiTube-releases](https://github.com/Roguu2/SpotiTube-releases/releases) repository. The source repo stays
   private; the public repo only holds installers and the update feed.
 
-The release goes live automatically, but only after both platform builds succeed and every file is uploaded;
+The release goes live automatically, but only after every platform build succeeds and every file is uploaded;
 otherwise it stays a draft. Release notes are generated from the commits since the previous tag.
 
 **One-time setup:** create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)

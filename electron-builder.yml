@@ -37,12 +37,22 @@ mac:
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}
 
+# AppImage runs on any distribution; the .deb installs Chromium's sandbox helper
+# properly, which AppImages can't do on Ubuntu 24.04+ without extra setup.
 linux:
-  target: [AppImage]
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
   category: Audio
-  maintainer: spotitube
+  executableName: spotitube
+  synopsis: Spotify and YouTube Music in one player
+  maintainer: Roguu2 <Roguu2@users.noreply.github.com>
 appImage:
-  artifactName: ${productName}-${version}.${ext}
+  artifactName: ${productName}-${version}-${arch}.${ext}
+deb:
+  artifactName: ${productName}-${version}-${arch}.${ext}
 
 # Source is private; installers and the update feed live in a public repo so
 # installed apps can update without credentials.

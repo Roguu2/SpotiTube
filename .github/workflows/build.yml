@@ -26,6 +26,12 @@ jobs:
             target: --mac
             artifact: SpotiTube-macos
             files: release/*/*.dmg
+          - os: ubuntu-latest
+            target: --linux
+            artifact: SpotiTube-linux
+            files: |
+              release/*/*.AppImage
+              release/*/*.deb
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: false
     steps:

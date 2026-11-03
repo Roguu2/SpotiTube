@@ -2,7 +2,7 @@
   "name": "spotitube",
   "productName": "SpotiTube",
   "version": "0.3.1",
-  "description": "Unified Spotify + YouTube Music desktop player with a real-time DSP audio engine.",
+  "description": "Unified Spotify + YouTube Music desktop player.",
   "homepage": "https://github.com/Roguu2/SpotiTube",
   "repository": {
     "type": "git",
