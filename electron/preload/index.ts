@@ -74,7 +74,8 @@ const electronAPI: ElectronAPI = {
   },
   media: {
     onCommand: (listener) => subscribe<[MediaCommand]>(IpcChannels.mediaCommand, listener),
-    updateNowPlaying: (info) => ipcRenderer.send(IpcChannels.mediaNowPlaying, info)
+    updateNowPlaying: (info) => ipcRenderer.send(IpcChannels.mediaNowPlaying, info),
+    notifyTrack: (notice) => ipcRenderer.send(IpcChannels.mediaNotifyTrack, notice)
   },
   dsp: {
     getState: () => invoke(IpcChannels.dspGetState),

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, session } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
-import { IpcChannels, type PresenceInfo } from '@core/ipc'
+import { IpcChannels, type PresenceInfo, type TrackNotice } from '@core/ipc'
 import { createMainWindow } from './window'
 import { registerWindowIpc } from './ipc/window'
 import { registerLibraryIpc } from './ipc/library'
@@ -12,6 +12,8 @@ import { initRemote, stopRemote } from './remote'
 import { registerSyncIpc } from './ipc/sync'
 import { flushSync } from './services/sync'
 import { DiscordPresence } from './services/discord'
+import { notifyTrack } from './services/trackNotifications'
+import { isMiniMode } from './services/windowState'
 import { isTrustedSender } from './ipc/handle'
 import { UpdateService } from './services/updater'
 import { getSettings } from './services/store'
@@ -112,6 +114,12 @@ async function bootstrap(): Promise<void> {
     if (!isTrustedSender(event)) return
     presence.setEnabled(enabled === true)
     presence.update(enabled === true ? info : null)
+  })
+  ipcMain.on(IpcChannels.mediaNotifyTrack, (event, notice: TrackNotice) => {
+    // The mini player is always in view, so it needs no announcement.
+    if (!isTrustedSender(event) || !getSettings().trackNotifications || isMiniMode()) return
+    if (typeof notice?.title !== 'string' || typeof notice.artists !== 'string') return
+    void notifyTrack(mainWindow, notice, showMainWindow)
   })
 
   const updates = new UpdateService()

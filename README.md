@@ -33,6 +33,8 @@
 - **Sync between computers** — choose a folder you already sync (OneDrive, Dropbox, iCloud Drive, Google Drive) on
   each computer: hybrid playlists, chosen song versions, playback settings and listening history follow you, and
   **Continue here** picks up a song where another computer left off. No server, no account; secrets never sync.
+- **Song notifications** — optionally, a quiet system notification with the cover when a new song starts while
+  SpotiTube is in the background (Settings).
 - **Discord status** — optionally show *Listening to SpotiTube* with the song, artist, cover, a progress bar and an
   *Open on Spotify / YouTube Music* button on your Discord profile (Settings; Discord must be running).
 - **Mini player** — shrink the window into a small always-on-top player (`Ctrl/Cmd + Shift + M` or the

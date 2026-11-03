@@ -82,7 +82,8 @@ export const IpcChannels = {
   syncStatusChanged: 'sync:status-changed',
   syncApplied: 'sync:applied',
 
-  presenceUpdate: 'presence:update'
+  presenceUpdate: 'presence:update',
+  mediaNotifyTrack: 'media:notify-track'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -147,6 +148,8 @@ export interface AppSettings {
   remoteEnabled: boolean
   /** Show what's playing as your Discord status. */
   discordPresence: boolean
+  /** A system notification when a new song starts while SpotiTube is in the background. */
+  trackNotifications: boolean
 }
 
 /** Where a play started from, as shown in the queue and in Recently played. */
@@ -203,6 +206,14 @@ export interface UpdateState {
 export type AppSettingsPatch = Partial<Omit<AppSettings, 'spotifyRedirectUri'>>
 
 export type MediaCommand = 'play-pause' | 'next' | 'previous' | 'stop'
+
+/** A new song, for the system notification. */
+export interface TrackNotice {
+  title: string
+  artists: string
+  album?: string
+  artworkUrl?: string
+}
 
 /** What Discord shows while a track plays. */
 export interface PresenceInfo {
@@ -379,6 +390,8 @@ export interface ElectronAPI {
   media: {
     onCommand(listener: (command: MediaCommand) => void): Unsubscribe
     updateNowPlaying(info: NowPlayingInfo | null): void
+    /** Announces a new song with a system notification (if enabled and SpotiTube is in the background). */
+    notifyTrack(notice: TrackNotice): void
   }
   dsp: {
     getState(): Promise<DspPersistedState>

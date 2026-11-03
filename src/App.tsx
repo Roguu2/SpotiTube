@@ -21,6 +21,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePlaybackPersistence } from './hooks/usePlaybackPersistence'
 import { useRemoteBridge } from './hooks/useRemoteBridge'
 import { usePresenceBridge } from './hooks/usePresenceBridge'
+import { useTrackNotifications } from './hooks/useTrackNotifications'
 import { useLibraryStore } from './store/useLibraryStore'
 import { useSettingsStore } from './store/useSettingsStore'
 
@@ -30,6 +31,7 @@ export function App() {
   usePlaybackPersistence()
   useRemoteBridge()
   usePresenceBridge()
+  useTrackNotifications()
 
   const appInfo = useSettingsStore((s) => s.appInfo)
   const miniMode = useSettingsStore((s) => s.miniMode)

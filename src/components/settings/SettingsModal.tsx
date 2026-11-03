@@ -518,6 +518,12 @@ function PlaybackSection() {
         onChange={(v) => void update({ closeToTray: v })}
       />
       <SettingToggle
+        label="Song notifications"
+        description="A quiet system notification with the cover when a new song starts while SpotiTube is in the background."
+        checked={settings.trackNotifications}
+        onChange={(v) => void update({ trackNotifications: v })}
+      />
+      <SettingToggle
         label="Discord status"
         description={
           appInfo?.discordAvailable
