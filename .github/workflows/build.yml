@@ -22,7 +22,9 @@ jobs:
             target: --win
             artifact: SpotiTube-windows
             files: release/*/*.exe
-          - os: macos-latest
+          # Intel runner: Apple Silicon runners are often out of capacity, and the universal
+          # .dmg built here runs natively on both kinds of Mac.
+          - os: macos-15-intel
             target: --mac
             artifact: SpotiTube-macos
             files: release/*/*.dmg

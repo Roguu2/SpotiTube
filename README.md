@@ -175,7 +175,7 @@ Scanning the QR code in **Settings → Phone remote** opens it and pairs the pho
 
 ## Releases and CI
 
-Two GitHub Actions workflows build on `windows-latest`, `macos-latest` and `ubuntu-latest`:
+Two GitHub Actions workflows build on `windows-latest`, `macos-15-intel` and `ubuntu-latest`:
 
 - **`build.yml`** — on every push to `main` and on pull requests: type-check, bundle, package, and upload the
   `.exe`, `.dmg`, `.AppImage` and `.deb` as workflow artifacts (kept 14 days).
