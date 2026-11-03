@@ -36,11 +36,24 @@ export function registerLikesIpc({ hybrid, spotify, youtube }: LikesIpcDeps): vo
       }
       if (track.source === 'ytmusic' && youtube.hasCookie()) {
         const yt = await youtube.getAuthenticated()
-        await (on ? yt.interact.like(track.sourceTrackId) : yt.interact.removeRating(track.sourceTrackId))
+        // As YouTube Music's own web client does it. youtubei.js's interact.like() sends these as the TV
+        // client, which a browser-cookie session can't use (YouTube answers 400).
+        await yt.actions.execute(on ? '/like/like' : '/like/removelike', {
+          target: { videoId: track.streamVideoId ?? track.sourceTrackId },
+          client: 'YTMUSIC'
+        })
         return { liked: on, service: 'ytmusic' }
       }
     } catch (error) {
-      return { liked: on, service: null, serviceError: errorMessage(error) }
+      // youtubei.js errors spell out the whole request URL; the status is what matters to a person.
+      const status = /status code (\d{3})/.exec(errorMessage(error))?.[1]
+      const message =
+        status === '401' || status === '403'
+          ? 'your sign-in has expired — reconnect YouTube Music in Settings'
+          : status
+            ? `it refused the like (HTTP ${status})`
+            : errorMessage(error)
+      return { liked: on, service: null, serviceError: message }
     }
     return { liked: on, service: null }
   })
