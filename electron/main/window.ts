@@ -2,6 +2,7 @@ import { BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { IpcChannels } from '@core/ipc'
+import { initialWindowBounds, trackWindowState, wasMaximized } from './services/windowState'
 
 const BACKGROUND = '#09090b'
 
@@ -9,8 +10,8 @@ export function createMainWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin'
 
   const win = new BrowserWindow({
-    width: 1360,
-    height: 860,
+    // Last session's size and position (falls back to centred defaults).
+    ...initialWindowBounds(),
     minWidth: 960,
     minHeight: 600,
     show: false,
@@ -32,7 +33,11 @@ export function createMainWindow(): BrowserWindow {
     }
   })
 
-  win.once('ready-to-show', () => win.show())
+  win.once('ready-to-show', () => {
+    if (wasMaximized()) win.maximize()
+    win.show()
+  })
+  trackWindowState(win)
 
   const emitMaximized = (): void => {
     win.webContents.send(IpcChannels.windowMaximizedChanged, win.isMaximized())

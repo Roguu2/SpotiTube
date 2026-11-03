@@ -2,7 +2,7 @@ import { YTNodes, type Helpers } from 'youtubei.js'
 import { makePlaylistId, type IMusicProvider, type UnifiedPlaylist, type UnifiedTrack } from '@core/types'
 import { bestThumbnail, type YouTubeClient } from '../../services/youtube'
 import type { StreamResolver } from '../../services/streamResolver'
-import { collectListItems, listItemToTrack } from './mapping'
+import { collectListItems, listItemToTrack, panelToTracks } from './mapping'
 
 const LIKED_MUSIC_ID = 'LM'
 const MAX_TRACKS_PER_PLAYLIST = 5_000
@@ -104,6 +104,13 @@ export class YouTubeMusicProvider implements IMusicProvider {
     const yt = await this.youtube.getAnonymous()
     const results = await yt.music.search(query, { type: 'song' })
     return collectListItems(results.contents).map((item) => listItemToTrack(item))
+  }
+
+  /** Tracks YouTube Music would play after `videoId` (its radio / automix), excluding the seed itself. */
+  async getRadio(videoId: string): Promise<UnifiedTrack[]> {
+    const yt = await this.youtube.getAnonymous()
+    const panel = await yt.music.getUpNext(videoId, true)
+    return panelToTracks(panel.contents).filter((t) => t.streamVideoId !== videoId)
   }
 
   resolveStreamUrl(track: UnifiedTrack): Promise<string> {

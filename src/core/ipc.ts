@@ -18,6 +18,7 @@ export const IpcChannels = {
   libraryGetPlaylists: 'library:get-playlists',
   libraryGetPlaylistTracks: 'library:get-playlist-tracks',
   librarySearch: 'library:search',
+  libraryGetSimilar: 'library:get-similar',
   libraryChanged: 'library:changed',
 
   hybridCreate: 'hybrid:create',
@@ -115,6 +116,8 @@ export interface AppSettings {
   autoUpdate: boolean
   /** Restore the queue and playback position from the previous run on launch. */
   restoreSession: boolean
+  /** When the queue runs out, keep playing tracks similar to the last one. */
+  autoplay: boolean
 }
 
 /** Where a play started from, as shown in the queue and in Recently played. */
@@ -195,6 +198,8 @@ export interface ElectronAPI {
     getPlaylists(): Promise<LibrarySnapshot>
     getPlaylistTracks(playlistId: string): Promise<UnifiedTrack[]>
     search(query: string): Promise<SearchResults>
+    /** Tracks similar to the given one (YouTube Music radio), for autoplay and "Start radio". */
+    getSimilar(track: UnifiedTrack): Promise<UnifiedTrack[]>
     onChanged(listener: () => void): Unsubscribe
   }
   hybrid: {

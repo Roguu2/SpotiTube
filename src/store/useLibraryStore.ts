@@ -50,6 +50,40 @@ const MAX_HISTORY = 30
 let searchTimer: number | null = null
 let searchToken = 0
 
+const VIEW_KEY = 'spotitube.lastView'
+const FILTERS: LibraryFilter[] = ['all', 'spotify', 'ytmusic', 'split']
+
+/** Where the app was left, so the next launch opens there (playlists are checked once the library loads). */
+function readLastView(): { view: View; filter: LibraryFilter } {
+  const fallback = { view: { kind: 'library' } as View, filter: 'all' as LibraryFilter }
+  try {
+    const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? 'null') as { view?: View; filter?: LibraryFilter } | null
+    if (!saved) return fallback
+    const view = saved.view
+    const valid =
+      view?.kind === 'library' ||
+      view?.kind === 'search' ||
+      view?.kind === 'history' ||
+      (view?.kind === 'playlist' && typeof view.playlistId === 'string')
+    return {
+      view: valid ? (view as View) : fallback.view,
+      filter: saved.filter && FILTERS.includes(saved.filter) ? saved.filter : fallback.filter
+    }
+  } catch {
+    return fallback
+  }
+}
+
+function writeLastView(view: View, filter: LibraryFilter): void {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify({ view, filter }))
+  } catch {
+    // Opening on the library instead is harmless.
+  }
+}
+
+const lastView = readLastView()
+
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -87,8 +121,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
     loading: false,
     loaded: false,
     error: null,
-    filter: 'all',
-    view: { kind: 'library' },
+    filter: lastView.filter,
+    view: lastView.view,
     history: [],
     tracks: {},
     search: { query: '', loading: false, results: null },
@@ -227,4 +261,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
       }
     }
   }
+})
+
+useLibraryStore.subscribe((state, previous) => {
+  if (state.view !== previous.view || state.filter !== previous.filter) writeLastView(state.view, state.filter)
 })

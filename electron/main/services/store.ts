@@ -40,7 +40,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   closeToTray: false,
   syntheticFallback: true,
   autoUpdate: true,
-  restoreSession: true
+  restoreSession: true,
+  autoplay: true
 }
 
 const store = new Store<PersistedState>({
@@ -69,6 +70,7 @@ export function updateSettings(patch: AppSettingsPatch): AppSettings {
   if (patch.syntheticFallback !== undefined) next.syntheticFallback = patch.syntheticFallback
   if (patch.autoUpdate !== undefined) next.autoUpdate = patch.autoUpdate
   if (patch.restoreSession !== undefined) next.restoreSession = patch.restoreSession
+  if (patch.autoplay !== undefined) next.autoplay = patch.autoplay
   store.set('settings', next)
   return getSettings()
 }

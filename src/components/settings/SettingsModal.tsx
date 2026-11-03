@@ -7,6 +7,7 @@ import { SourceBadge } from '@/components/ui/SourceBadge'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useUpdateStore } from '@/store/useUpdateStore'
 import { useHistoryStore } from '@/store/useHistoryStore'
+import { usePlayerStore } from '@/store/usePlayerStore'
 import { cx } from '@/lib/format'
 
 export function SettingsModal() {
@@ -316,6 +317,7 @@ function PlaybackSection() {
   const update = useSettingsStore((s) => s.update)
   const playCount = useHistoryStore((s) => s.plays.length)
   const clearHistory = useHistoryStore((s) => s.clear)
+  const setAutoplayEnabled = usePlayerStore((s) => s.setAutoplayEnabled)
   const [ytDlpPath, setYtDlpPath] = useState(settings?.ytDlpPath ?? '')
 
   useEffect(() => setYtDlpPath(settings?.ytDlpPath ?? ''), [settings?.ytDlpPath])
@@ -345,6 +347,12 @@ function PlaybackSection() {
         description="Keep playing in the system tray when the window is closed."
         checked={settings.closeToTray}
         onChange={(v) => void update({ closeToTray: v })}
+      />
+      <SettingToggle
+        label="Autoplay similar tracks"
+        description="When the queue runs out, keep playing tracks similar to the last one. Your queue always plays first."
+        checked={settings.autoplay}
+        onChange={(v) => void setAutoplayEnabled(v)}
       />
       <SettingToggle
         label="Resume where you left off"

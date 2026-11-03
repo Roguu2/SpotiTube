@@ -52,3 +52,31 @@ export function listItemToCandidate(item: ListItem): Omit<StreamCandidate, 'scor
     kind: item.item_type === 'song' ? 'song' : 'video'
   }
 }
+
+/** Tracks from a YouTube Music "Up next" / radio panel, in panel order. */
+export function panelToTracks(nodes: Helpers.ObservedArray<Helpers.YTNode> | undefined): UnifiedTrack[] {
+  if (!nodes) return []
+  const videos: YTNodes.PlaylistPanelVideo[] = []
+  for (const node of nodes) {
+    if (node.is(YTNodes.PlaylistPanelVideo)) videos.push(node)
+    else if (node.is(YTNodes.PlaylistPanelVideoWrapper) && node.primary) videos.push(node.primary)
+  }
+  return videos
+    .filter((video) => video.video_id)
+    .map((video) => {
+      const artworkUrl = bestThumbnail(video.thumbnail)
+      const artists = video.artists?.length ? video.artists : video.author ? [{ name: video.author }] : []
+      return {
+        id: makeTrackId('ytmusic', video.video_id),
+        providerId: 'ytmusic',
+        source: 'ytmusic',
+        sourceTrackId: video.video_id,
+        title: video.title.toString() || 'Unknown title',
+        artists: artists.map((a) => ({ id: ('channel_id' in a && a.channel_id) || a.name, name: a.name })),
+        album: video.album ? { id: video.album.id ?? video.album.name, name: video.album.name, artworkUrl } : undefined,
+        durationMs: (video.duration?.seconds ?? 0) * 1000,
+        artworkUrl,
+        streamVideoId: video.video_id
+      } satisfies UnifiedTrack
+    })
+}

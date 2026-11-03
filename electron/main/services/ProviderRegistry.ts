@@ -202,6 +202,21 @@ export class ProviderRegistry {
     return { mode: 'synthetic', url, alternatives: [], isOverride: false }
   }
 
+  /**
+   * Tracks similar to `track`, from YouTube Music's radio for it. Non-YouTube
+   * tracks (Spotify, demo, hybrid) use the upload they are matched to.
+   */
+  async getSimilar(track: UnifiedTrack): Promise<UnifiedTrack[]> {
+    const override = getStreamOverride(track.id)
+    const seed =
+      override?.videoId ??
+      track.streamVideoId ??
+      this.matcher.peek(track.id)?.videoId ??
+      (await this.matcher.acceptable(track))[0]?.videoId
+    if (!seed) throw new Error(`No YouTube Music match to base a radio on for “${track.title}”`)
+    return this.providers.ytmusic.getRadio(seed)
+  }
+
   async getCandidates(track: UnifiedTrack, query?: string): Promise<StreamCandidate[]> {
     return this.matcher.candidates(track, query)
   }

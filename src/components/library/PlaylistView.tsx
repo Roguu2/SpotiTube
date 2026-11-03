@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { ArrowLeft, Ellipsis, ListEnd, ListPlus, LoaderCircle, Pencil, Play, Shuffle, Trash } from 'lucide-react'
+import { ArrowDownUp, ArrowLeft, Ellipsis, ListEnd, ListPlus, LoaderCircle, Pencil, Play, Search, Shuffle, Trash } from 'lucide-react'
 import { Artwork } from '@/components/ui/Artwork'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { Button, IconButton } from '@/components/ui/IconButton'
@@ -9,6 +9,7 @@ import { AddToHybridMenu } from './AddToHybridMenu'
 import { useLibraryStore } from '@/store/useLibraryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { formatTotalDuration, formatTrackCount } from '@/lib/format'
+import { filterAndSortTracks, readPlaylistSort, TRACK_SORT_LABELS, writePlaylistSort, type TrackSort } from '@/lib/trackFilter'
 
 export function PlaylistView({ playlistId }: { playlistId: string }) {
   const playlist = useLibraryStore((s) => s.playlists.find((p) => p.id === playlistId))
@@ -32,8 +33,12 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
     if (!state) void loadTracks(playlistId)
   }, [state, playlistId, loadTracks])
 
-  const tracks = useMemo(() => state?.tracks ?? [], [state])
-  const totalMs = useMemo(() => tracks.reduce((sum, t) => sum + t.durationMs, 0), [tracks])
+  const allTracks = useMemo(() => state?.tracks ?? [], [state])
+  const totalMs = useMemo(() => allTracks.reduce((sum, t) => sum + t.durationMs, 0), [allTracks])
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<TrackSort>(() => readPlaylistSort(playlistId))
+  // What you see is what plays: the filtered, sorted list drives play, shuffle and queueing.
+  const tracks = useMemo(() => filterAndSortTracks(allTracks, query, sort), [allTracks, query, sort])
 
   if (!playlist) return null
   const isHybrid = playlist.source === 'hybrid'
@@ -44,6 +49,11 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
     if (shuffle !== shuffleOn) toggleShuffle()
     const start = shuffle ? Math.floor(Math.random() * tracks.length) : 0
     void playQueue(tracks, start, context)
+  }
+
+  const changeSort = (next: TrackSort): void => {
+    setSort(next)
+    writePlaylistSort(playlistId, next)
   }
 
   const submitRename = (event: FormEvent): void => {
@@ -88,20 +98,20 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
             <p className="mt-2 text-[13px] text-zinc-400">
               {playlist.owner && <span className="font-semibold text-zinc-200">{playlist.owner}</span>}
               {playlist.owner && ' · '}
-              {formatTrackCount(state && !state.loading ? tracks.length : playlist.trackCount)}
+              {formatTrackCount(state && !state.loading ? allTracks.length : playlist.trackCount)}
               {totalMs > 0 && `, ${formatTotalDuration(totalMs)}`}
             </p>
           </div>
         </div>
       </header>
 
-      <div className="flex items-center gap-3 px-8 py-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-3 px-8 py-4">
         <button
           type="button"
           aria-label="Play"
           disabled={!tracks.length}
           onClick={() => play(false)}
-          className="flex size-12 items-center justify-center rounded-full bg-spotify text-black shadow-lg shadow-spotify/20 transition hover:scale-105 hover:bg-[#1ed760] disabled:opacity-40"
+          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-spotify text-black shadow-lg shadow-spotify/20 transition hover:scale-105 hover:bg-[#1ed760] disabled:opacity-40"
         >
           <Play size={20} fill="currentColor" className="translate-x-px" />
         </button>
@@ -154,10 +164,42 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
             </Menu>
           </>
         )}
+        {allTracks.length > 1 && (
+          <div className="ml-auto flex items-center gap-2">
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+                placeholder="Find in playlist"
+                aria-label="Find in playlist"
+                data-playlist-filter
+                className="h-8 w-52 rounded-full bg-white/[0.06] pr-3 pl-8 text-[12.5px] text-zinc-100 ring-1 ring-white/10 outline-none placeholder:text-zinc-500 focus:bg-white/10 focus:ring-white/25 [&::-webkit-search-cancel-button]:hidden"
+              />
+            </div>
+            <label className="relative flex items-center">
+              <ArrowDownUp size={13} className="pointer-events-none absolute left-2.5 text-zinc-500" />
+              <select
+                value={sort}
+                onChange={(e) => changeSort(e.target.value as TrackSort)}
+                aria-label="Sort tracks"
+                className="h-8 appearance-none rounded-full bg-white/[0.06] pr-3 pl-7 text-[12.5px] text-zinc-200 ring-1 ring-white/10 outline-none hover:bg-white/10"
+              >
+                {(Object.keys(TRACK_SORT_LABELS) as TrackSort[]).map((key) => (
+                  <option key={key} value={key}>
+                    {TRACK_SORT_LABELS[key]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="px-5">
-        {state?.loading && !tracks.length ? (
+        {state?.loading && !allTracks.length ? (
           <div className="flex justify-center py-16 text-zinc-500">
             <LoaderCircle className="animate-spin" size={22} aria-label="Loading tracks" />
           </div>
@@ -170,6 +212,13 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
           </div>
         ) : tracks.length ? (
           <TrackList tracks={tracks} context={context} hybridPlaylistId={isHybrid ? playlistId : undefined} />
+        ) : allTracks.length ? (
+          <p className="px-3 py-12 text-center text-sm text-zinc-500">
+            No tracks match “{query}”.{' '}
+            <button type="button" onClick={() => setQuery('')} className="text-zinc-300 underline underline-offset-2">
+              Clear search
+            </button>
+          </p>
         ) : (
           <p className="px-3 py-12 text-center text-sm text-zinc-500">
             {isHybrid ? 'This hybrid playlist is empty — add tracks from any Spotify or YT Music playlist or search.' : 'This playlist is empty.'}

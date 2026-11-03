@@ -27,7 +27,14 @@ export function useKeyboardShortcuts(): void {
 
       if (mod && event.key.toLowerCase() === 'f') {
         event.preventDefault()
-        useLibraryStore.getState().navigate({ kind: 'search' })
+        // Inside a playlist, Ctrl+F finds in that playlist; elsewhere it opens Search.
+        const filter = document.querySelector<HTMLInputElement>('[data-playlist-filter]')
+        if (filter) {
+          filter.focus()
+          filter.select()
+        } else {
+          useLibraryStore.getState().navigate({ kind: 'search' })
+        }
         return
       }
       if (mod && event.key.toLowerCase() === 'e') {

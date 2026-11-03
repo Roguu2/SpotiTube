@@ -24,10 +24,17 @@
 - **Queue** — see what's playing and what's next; **Play next** / **Add to queue** on any track (right-click or ⋯),
   drag & drop or `Alt+↑/↓` to reorder, remove, clear, or jump to any entry. Queued tracks play before the rest of the
   playlist, and shuffle leaves them in place.
+- **Autoplay & radio** — when the queue runs out, SpotiTube keeps going with similar tracks (shown as *Autoplay* at the
+  end of the queue, so anything you queue still plays first; switch it off in the queue or in Settings).
+  **Start radio** on any track builds an endless mix around it.
+- **Find & sort in playlists** — filter a playlist by title, artist or album (`Ctrl/Cmd + F`) and sort it by title,
+  artist, album or length; the sort is remembered per playlist.
+- **Sleep timer** — the moon button in the player bar stops playback after 15–90 minutes or at the end of the track.
 - **Recently played** — every track you listen to for 30 s or more (or half of a shorter one), grouped by day, with
   **Jump back in** cards for the playlists you played from. Clear it any time in Settings.
 - **Resume where you left off** — the queue, shuffle/repeat and the playing track come back on launch, paused at the
-  same spot. Drag the seek bar before pressing play to start somewhere else. Can be turned off in Settings.
+  same spot. Drag the seek bar before pressing play to start somewhere else. Can be turned off in Settings. The window
+  size and position and the last open view are restored too.
 - **Desktop integration** — frameless window with native controls (Windows) or inset traffic lights (macOS);
   previous / play-pause / next buttons on the **taskbar thumbnail** (Windows) or in the **Dock menu** (macOS); the
   current song in the window title; media keys, OS media overlay (MediaSession), tray controls, optional close-to-tray.
@@ -126,7 +133,7 @@ When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.
 | `Ctrl/Cmd + ←` / `→` | Previous / next track |
 | `↑` / `↓` | Volume up / down |
 | `M` | Mute |
-| `Ctrl/Cmd + F` | Search |
+| `Ctrl/Cmd + F` | Find in the open playlist, otherwise Search |
 | `Ctrl/Cmd + E` | Toggle the queue |
 | `Ctrl/Cmd + ,` | Settings |
 
@@ -264,7 +271,7 @@ Everything is stored locally in the app's user-data directory:
 | macOS | `~/Library/Application Support/SpotiTube/` |
 
 `spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
-the last 500 plays and the saved queue. `dsp-profiles.json` holds per-track audio settings and custom EQ presets. Deleting the folder resets the app.
+the last 500 plays, `session.json` the saved queue and `window-state.json` the window size and position. `dsp-profiles.json` holds per-track audio settings and custom EQ presets. Deleting the folder resets the app.
 
 ## Troubleshooting
 

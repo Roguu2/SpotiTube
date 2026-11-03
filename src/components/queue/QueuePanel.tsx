@@ -1,6 +1,6 @@
-import { memo, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, memo, useState, type DragEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronDown, ChevronUp, GripVertical, ListMusic, Play, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, GripVertical, Infinity as InfinityIcon, ListMusic, LoaderCircle, Play, X } from 'lucide-react'
 import { artistLine, type UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { SourceBadge } from '@/components/ui/SourceBadge'
@@ -112,6 +112,8 @@ function UpNextSection() {
   const order = usePlayerStore((s) => s.order)
   const position = usePlayerStore((s) => s.position)
   const manual = usePlayerStore((s) => s.manual)
+  const autoplay = usePlayerStore((s) => s.autoplay)
+  const autoplaySeed = usePlayerStore((s) => s.autoplaySeed)
   const current = usePlayerStore((s) => s.current)
   const moveInQueue = usePlayerStore((s) => s.moveInQueue)
   const removeFromQueue = usePlayerStore((s) => s.removeFromQueue)
@@ -126,7 +128,8 @@ function UpNextSection() {
   const upcoming = order.slice(position + 1).map((index, i) => ({
     orderPosition: position + 1 + i,
     track: queue[index],
-    queued: manual.includes(index)
+    queued: manual.includes(index),
+    suggested: autoplay.includes(index)
   }))
   const hasQueued = upcoming.some((u) => u.queued)
 
@@ -174,42 +177,56 @@ function UpNextSection() {
         </p>
       ) : (
         <ol onDragLeave={(e) => e.currentTarget === e.target && setDropAt(null)}>
-          {upcoming.map(({ orderPosition, track, queued }, i) => (
-            <QueueRow
-              key={`${orderPosition}:${track.id}`}
-              number={i + 1}
-              track={track}
-              queued={queued}
-              dragging={dragFrom === orderPosition}
-              dropBefore={dropAt === orderPosition && dragFrom !== null}
-              dropAfter={dropAt === orderPosition + 1 && i === upcoming.length - 1 && dragFrom !== null}
-              onDragStart={() => setDragFrom(orderPosition)}
-              onDragEnd={() => {
-                setDragFrom(null)
-                setDropAt(null)
-              }}
-              onDragOver={(e) => onDragOver(e, orderPosition)}
-              onDrop={onDrop}
-              onPlay={() => void playFromQueue(orderPosition)}
-              onRemove={() => removeFromQueue(orderPosition)}
-              onKeyDown={(e) => {
-                // Keyboard reordering for accessibility.
-                if (e.altKey && e.key === 'ArrowUp') {
-                  e.preventDefault()
-                  moveInQueue(orderPosition, orderPosition - 1)
-                } else if (e.altKey && e.key === 'ArrowDown') {
-                  e.preventDefault()
-                  moveInQueue(orderPosition, orderPosition + 1)
-                } else if (e.key === 'Delete') {
-                  removeFromQueue(orderPosition)
-                } else if (e.key === 'Enter') {
-                  void playFromQueue(orderPosition)
-                }
-              }}
-            />
+          {upcoming.map(({ orderPosition, track, queued, suggested }, i) => (
+            <Fragment key={`${orderPosition}:${track.id}`}>
+              {suggested && !upcoming[i - 1]?.suggested && (
+                <li
+                  aria-hidden="true"
+                  className="mt-3 mb-1 flex items-center gap-2 px-2 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase"
+                >
+                  <InfinityIcon size={13} className="shrink-0" />
+                  <span className="truncate">
+                    Autoplay{autoplaySeed ? ` · similar to ${autoplaySeed.title}` : ''}
+                  </span>
+                </li>
+              )}
+              <QueueRow
+                number={i + 1}
+                track={track}
+                queued={queued}
+                suggested={suggested}
+                dragging={dragFrom === orderPosition}
+                dropBefore={dropAt === orderPosition && dragFrom !== null}
+                dropAfter={dropAt === orderPosition + 1 && i === upcoming.length - 1 && dragFrom !== null}
+                onDragStart={() => setDragFrom(orderPosition)}
+                onDragEnd={() => {
+                  setDragFrom(null)
+                  setDropAt(null)
+                }}
+                onDragOver={(e) => onDragOver(e, orderPosition)}
+                onDrop={onDrop}
+                onPlay={() => void playFromQueue(orderPosition)}
+                onRemove={() => removeFromQueue(orderPosition)}
+                onKeyDown={(e) => {
+                  // Keyboard reordering for accessibility.
+                  if (e.altKey && e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    moveInQueue(orderPosition, orderPosition - 1)
+                  } else if (e.altKey && e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    moveInQueue(orderPosition, orderPosition + 1)
+                  } else if (e.key === 'Delete') {
+                    removeFromQueue(orderPosition)
+                  } else if (e.key === 'Enter') {
+                    void playFromQueue(orderPosition)
+                  }
+                }}
+              />
+            </Fragment>
           ))}
         </ol>
       )}
+      <AutoplaySwitch />
     </section>
   )
 }
@@ -218,6 +235,7 @@ interface QueueRowProps {
   number: number
   track: UnifiedTrack
   queued: boolean
+  suggested: boolean
   dragging: boolean
   dropBefore: boolean
   dropAfter: boolean
@@ -234,6 +252,7 @@ const QueueRow = memo(function QueueRow({
   number,
   track,
   queued,
+  suggested,
   dragging,
   dropBefore,
   dropAfter,
@@ -289,6 +308,9 @@ const QueueRow = memo(function QueueRow({
           {queued && (
             <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-px text-[9.5px] font-semibold text-zinc-300">Queued</span>
           )}
+          {suggested && (
+            <span className="shrink-0 rounded-full bg-sky-400/15 px-1.5 py-px text-[9.5px] font-semibold text-sky-300">Autoplay</span>
+          )}
           <span className="truncate text-[11.5px] text-zinc-500">{artistLine(track)}</span>
         </div>
       </div>
@@ -305,3 +327,41 @@ const QueueRow = memo(function QueueRow({
     </li>
   )
 })
+
+/** Autoplay on/off, with what it is doing right now. */
+function AutoplaySwitch() {
+  const enabled = useSettingsStore((s) => s.settings?.autoplay ?? true)
+  const loading = usePlayerStore((s) => s.autoplayLoading)
+  const repeat = usePlayerStore((s) => s.repeat)
+  const setAutoplayEnabled = usePlayerStore((s) => s.setAutoplayEnabled)
+
+  const hint = !enabled
+    ? 'Playback stops when the queue runs out.'
+    : repeat !== 'off'
+      ? 'Paused while repeat is on.'
+      : 'When the queue runs out, similar tracks keep playing.'
+
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2.5 ring-1 ring-white/6">
+      {loading ? (
+        <LoaderCircle size={16} className="shrink-0 animate-spin text-zinc-400" aria-label="Finding similar tracks" />
+      ) : (
+        <InfinityIcon size={16} className="shrink-0 text-zinc-400" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="text-[12.5px] font-medium text-zinc-200">Autoplay</div>
+        <div className="text-[11px] text-zinc-500">{hint}</div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label="Autoplay similar tracks"
+        onClick={() => void setAutoplayEnabled(!enabled)}
+        className={cx('relative h-5 w-9 shrink-0 rounded-full transition-colors', enabled ? 'bg-spotify' : 'bg-white/15')}
+      >
+        <span className={cx('absolute top-0.5 size-4 rounded-full bg-white shadow transition-[left]', enabled ? 'left-[18px]' : 'left-0.5')} />
+      </button>
+    </div>
+  )
+}

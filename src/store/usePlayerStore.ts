@@ -4,6 +4,8 @@ import { artistLine, type PlaybackSource, type StreamCandidate, type UnifiedTrac
 import { useAudioEngineStore } from './useAudioEngineStore'
 import { EmbedPlaybackError } from '@/audio/YouTubeEmbedPlayer'
 import { toast } from './useToastStore'
+import { useSettingsStore } from './useSettingsStore'
+import { useHistoryStore } from './useHistoryStore'
 
 export type RepeatMode = 'off' | 'all' | 'one'
 export type PlayerStatus = 'idle' | 'resolving' | 'ready' | 'error'
@@ -27,6 +29,11 @@ interface PlayerState {
   repeat: RepeatMode
   /** Where the restored track picks up when play is pressed (status `idle` after a restore). */
   resumeAt: number | null
+  /** Indices into `queue` of upcoming tracks added by autoplay; they always come last. */
+  autoplay: number[]
+  /** The track the latest autoplay batch is based on. */
+  autoplaySeed: UnifiedTrack | null
+  autoplayLoading: boolean
 
   /** Puts back the queue from the previous run, paused, without loading any audio. */
   restoreSession(session: PlaybackSession): void
@@ -63,6 +70,11 @@ interface PlayerState {
   clearQueue(scope: 'queued' | 'all'): void
   /** Jumps to an upcoming entry and plays it. */
   playFromQueue(orderPosition: number): Promise<void>
+
+  /** Plays a track and keeps going with tracks similar to it, whatever the autoplay setting. */
+  startRadio(track: UnifiedTrack): Promise<void>
+  /** Turns autoplay on or off; turning it off drops the similar tracks still to come. */
+  setAutoplayEnabled(enabled: boolean): Promise<void>
 }
 
 /** After this many unplayable tracks in a row, stop auto-advancing. */
@@ -71,9 +83,38 @@ const RESTART_THRESHOLD_SECONDS = 3
 /** Lowest match score accepted when searching for more uploads after embeds were refused. */
 const MIN_FALLBACK_SCORE = 0.7
 
+/** Start fetching similar tracks when this many (or fewer) are left, so there is never a gap. */
+const AUTOPLAY_LOOKAHEAD = 2
+const AUTOPLAY_BATCH = 15
+/** Recently heard tracks are not suggested again. */
+const AUTOPLAY_RECENT_PLAYS = 50
+
 let playToken = 0
 let consecutiveFailures = 0
 let recovering = false
+/** Bumped whenever a new queue replaces the old one, so late autoplay results are dropped. */
+let queueGeneration = 0
+/** "Start radio" keeps extending even when the autoplay setting is off. */
+let radioActive = false
+let lastAutoplaySeedId: string | null = null
+let autoplayInFlight: Promise<boolean> | null = null
+let endOfTrackGuard: (() => boolean) | null = null
+
+/** Lets another feature stop playback when a track ends instead of advancing (returns true to stop). */
+export function registerEndOfTrackGuard(guard: () => boolean): void {
+  endOfTrackGuard = guard
+}
+
+/** Same song, different upload ("Official Video", "Remastered" …) — compared loosely. */
+function songKey(track: UnifiedTrack): string {
+  const title = track.title
+    .toLowerCase()
+    .replace(/[([{].*?[)\]}]/g, ' ')
+    .replace(/\b(official|video|audio|lyrics?|visualizer|remaster(ed)?|hd|4k)\b/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+  return `${title}|${(track.artists[0]?.name ?? '').toLowerCase()}`
+}
 
 function shuffleInPlace<T>(items: T[]): T[] {
   for (let i = items.length - 1; i > 0; i--) {
@@ -164,6 +205,65 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     }
   }
 
+  const autoplayAllowed = (): boolean =>
+    get().repeat === 'off' && (radioActive || (useSettingsStore.getState().settings?.autoplay ?? true))
+
+  /**
+   * Appends tracks similar to the last one in the queue once the queue is nearly
+   * done. The user's queue always comes first: autoplay only ever adds to the end.
+   * Resolves `true` when something was added.
+   */
+  const extendWithSimilar = (force = false): Promise<boolean> => {
+    if (autoplayInFlight) return autoplayInFlight
+    const { order, position, queue, current } = get()
+    if (!current || !autoplayAllowed()) return Promise.resolve(false)
+    if (!force && order.length - position - 1 > AUTOPLAY_LOOKAHEAD) return Promise.resolve(false)
+
+    const seed = queue[order[order.length - 1]]
+    // One batch per seed: a radio that yields nothing new must not be refetched in a loop.
+    if (!seed || seed.id === lastAutoplaySeedId) return Promise.resolve(false)
+    lastAutoplaySeedId = seed.id
+
+    const generation = queueGeneration
+    set({ autoplayLoading: true })
+    autoplayInFlight = window.electronAPI.library
+      .getSimilar(seed)
+      .then((similar) => {
+        if (generation !== queueGeneration || !autoplayAllowed()) return false
+        const state = get()
+        const known = new Set([
+          ...state.queue.map(songKey),
+          ...useHistoryStore.getState().plays.slice(0, AUTOPLAY_RECENT_PLAYS).map((p) => songKey(p.track))
+        ])
+        const fresh: UnifiedTrack[] = []
+        for (const track of similar) {
+          const key = songKey(track)
+          if (known.has(key)) continue
+          known.add(key)
+          fresh.push(track)
+          if (fresh.length === AUTOPLAY_BATCH) break
+        }
+        if (!fresh.length) return false
+        const indices = fresh.map((_, i) => state.queue.length + i)
+        set({
+          queue: [...state.queue, ...fresh],
+          order: [...state.order, ...indices],
+          autoplay: [...state.autoplay, ...indices],
+          autoplaySeed: seed
+        })
+        return true
+      })
+      .catch((error: unknown) => {
+        console.error('Autoplay failed:', error)
+        return false
+      })
+      .finally(() => {
+        autoplayInFlight = null
+        set({ autoplayLoading: false })
+      })
+    return autoplayInFlight
+  }
+
   const start = async (position: number, startAt?: number): Promise<void> => {
     const { queue, order } = get()
     const track = queue[order[position]]
@@ -172,7 +272,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const token = ++playToken
     // A queued track that starts playing is no longer "queued".
     const manual = get().manual.filter((index) => index !== order[position])
-    set({ position, manual, current: track, status: 'resolving', error: null, source: null, resumeAt: null })
+    const fromAutoplay = get().autoplay.includes(order[position])
+    const autoplay = get().autoplay.filter((index) => index !== order[position])
+    const seed = get().autoplaySeed
+    set({
+      position,
+      manual,
+      autoplay,
+      current: track,
+      status: 'resolving',
+      error: null,
+      source: null,
+      resumeAt: null,
+      // Tracks picked by autoplay are "playing from" the radio, not the original playlist.
+      ...(fromAutoplay && seed && !radioActive ? { context: { label: `Autoplay · similar to ${seed.title}` } } : {})
+    })
     updateMediaSession(track)
 
     try {
@@ -195,6 +309,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       consecutiveFailures = 0
       if (source.mode === 'synthetic') toast.info(`No match found for “${track.title}” — playing a synthesized preview`)
       prefetchNext()
+      void extendWithSimilar()
     } catch (error) {
       if (token !== playToken) return
       const message = errorText(error)
@@ -220,6 +335,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     shuffle: false,
     repeat: 'off',
     resumeAt: null,
+    autoplay: [],
+    autoplaySeed: null,
+    autoplayLoading: false,
 
     restoreSession(session) {
       const current = session.queue[session.order[session.position]]
@@ -236,8 +354,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         source: null,
         status: 'idle',
         error: null,
-        resumeAt: session.currentTime
+        resumeAt: session.currentTime,
+        autoplay: [],
+        autoplaySeed: null
       })
+      queueGeneration++
+      radioActive = false
+      lastAutoplaySeedId = null
       updateMediaSession(current)
     },
 
@@ -250,7 +373,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const index = Math.min(Math.max(0, startIndex), tracks.length - 1)
       const order = get().shuffle ? shuffled(tracks.length, index) : tracks.map((_, i) => i)
       consecutiveFailures = 0
-      set({ queue: tracks, order, manual: [], context })
+      queueGeneration++
+      radioActive = false
+      lastAutoplaySeedId = null
+      set({ queue: tracks, order, manual: [], autoplay: [], autoplaySeed: null, context })
       await start(get().shuffle ? 0 : index)
     },
 
@@ -295,6 +421,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (!order.length) return
       if (position + 1 < order.length) {
         await start(position + 1)
+      } else if (repeat === 'off' && (await extendWithSimilar(true)) && get().position === position) {
+        // The queue ran out: keep going with similar tracks.
+        await start(position + 1)
       } else if (repeat === 'all' || !auto) {
         // Manual "next" on the last track wraps; automatic advance only wraps with repeat-all.
         if (repeat === 'all' || order.length > 1) await start(0)
@@ -313,19 +442,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     toggleShuffle() {
-      const { shuffle, order, position, manual } = get()
-      // History and tracks the user queued keep their place; only the rest of the playlist reorders.
+      const { shuffle, order, position, manual, autoplay } = get()
+      // History, tracks the user queued and autoplay picks keep their place; only the rest of the playlist reorders.
       const head = order.slice(0, position + 1)
       const upcoming = order.slice(position + 1)
       const queued = upcoming.filter((i) => manual.includes(i))
-      const rest = upcoming.filter((i) => !manual.includes(i))
+      const suggested = upcoming.filter((i) => autoplay.includes(i))
+      const rest = upcoming.filter((i) => !manual.includes(i) && !autoplay.includes(i))
       const reordered = shuffle ? unshuffled(rest, currentIndex()) : shuffleInPlace([...rest])
-      set({ shuffle: !shuffle, order: [...head, ...queued, ...reordered] })
+      set({ shuffle: !shuffle, order: [...head, ...queued, ...reordered, ...suggested] })
     },
 
     cycleRepeat() {
       const next: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'one', one: 'off' }
       set({ repeat: next[get().repeat] })
+      void extendWithSimilar()
     },
 
     async setStreamOverride(candidate) {
@@ -338,6 +469,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     async handleEnded() {
+      // e.g. a sleep timer set to "end of this track".
+      if (endOfTrackGuard?.()) {
+        useAudioEngineStore.getState().pause()
+        return
+      }
       if (get().repeat === 'one') {
         const engine = useAudioEngineStore.getState()
         engine.seek(0)
@@ -402,12 +538,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     removeFromQueue(orderPosition) {
-      const { order, position, manual } = get()
+      const { order, position, manual, autoplay } = get()
       if (orderPosition <= position || orderPosition >= order.length) return
       const removed = order[orderPosition]
       set({
         order: order.filter((_, p) => p !== orderPosition),
-        manual: manual.filter((i) => i !== removed)
+        manual: manual.filter((i) => i !== removed),
+        autoplay: autoplay.filter((i) => i !== removed)
       })
     },
 
@@ -425,7 +562,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     clearQueue(scope) {
       const { order, position, manual } = get()
       if (scope === 'all') {
-        set({ order: order.slice(0, position + 1), manual: [] })
+        set({ order: order.slice(0, position + 1), manual: [], autoplay: [] })
         return
       }
       const head = order.slice(0, position + 1)
@@ -437,6 +574,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (orderPosition <= get().position || orderPosition >= get().order.length) return
       consecutiveFailures = 0
       await start(orderPosition)
+    },
+
+    async startRadio(track) {
+      await get().playQueue([track], 0, { label: `Radio · ${track.title}` })
+      radioActive = true
+      if (await extendWithSimilar(true)) toast.success(`Radio started from “${track.title}”`)
+      else toast.error(`Couldn't find tracks similar to “${track.title}”`)
+    },
+
+    async setAutoplayEnabled(enabled) {
+      await useSettingsStore.getState().update({ autoplay: enabled })
+      if (enabled) {
+        lastAutoplaySeedId = null
+        void extendWithSimilar()
+        return
+      }
+      // Off means nothing similar plays: drop the suggestions still to come.
+      const { order, position, autoplay } = get()
+      set({
+        order: [...order.slice(0, position + 1), ...order.slice(position + 1).filter((i) => !autoplay.includes(i))],
+        autoplay: []
+      })
     }
   }
 

@@ -20,6 +20,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { Slider } from '@/components/ui/Slider'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
 import { SeekBar } from './SeekBar'
+import { SleepTimerButton } from './SleepTimerButton'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
@@ -167,6 +168,8 @@ function RightControls() {
 
   return (
     <div className="flex items-center justify-end gap-2">
+      <SleepTimerButton />
+
       <div className="relative">
         <IconButton label="Queue" active={queueOpen} onClick={() => toggleQueue()}>
           <ListMusic size={17} />
