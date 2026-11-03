@@ -12,7 +12,9 @@ import type { PresenceInfo } from '@core/ipc'
  * The Discord application the status appears under (Discord Developer Portal →
  * Applications → SpotiTube → Application ID). It is public, not a secret.
  */
-export const DISCORD_APPLICATION_ID = ''
+export const DISCORD_APPLICATION_ID: string = '1567177667495600281'
+/** Art Asset key of the SpotiTube logo in that application (Rich Presence → Art Assets). */
+const LOGO_ASSET = 'spotitube'
 
 const Op = { Handshake: 0, Frame: 1, Close: 2, Ping: 3, Pong: 4 } as const
 type Op = (typeof Op)[keyof typeof Op]
@@ -55,10 +57,17 @@ function activityFor(info: PresenceInfo): Record<string, unknown> {
         : { start: Math.round(now - info.position * 1000) },
     instance: false
   }
-  // Discord shows web images directly; inline images (the sample playlists') can't be used.
-  if (info.artworkUrl?.startsWith('https://') && info.artworkUrl.length <= 256) {
-    activity.assets = { large_image: info.artworkUrl, large_text: field(info.album ?? info.title, 128) }
-  }
+  // Discord shows web images directly; inline images (the sample playlists') can't be used, so those
+  // get the logo uploaded to the Discord application's Art Assets under LOGO_ASSET instead.
+  activity.assets =
+    info.artworkUrl?.startsWith('https://') && info.artworkUrl.length <= 256
+      ? {
+          large_image: info.artworkUrl,
+          large_text: field(info.album ?? info.title, 128),
+          small_image: LOGO_ASSET,
+          small_text: 'SpotiTube'
+        }
+      : { large_image: LOGO_ASSET, large_text: 'SpotiTube' }
   if (info.url) activity.buttons = [{ label: info.source === 'spotify' ? 'Open on Spotify' : 'Open on YouTube Music', url: info.url }]
   return activity
 }
