@@ -16,7 +16,7 @@ function isTyping(el: HTMLElement | null): boolean {
 
 /**
  * Space play/pause · ←/→ seek 5 s · Ctrl+←/→ previous/next · ↑/↓ volume ·
- * M mute · Ctrl+F search · Ctrl+E Audio Studio · Ctrl+, settings.
+ * M mute · Ctrl+F find/search · Ctrl+E queue · Ctrl+L lyrics · Ctrl+, settings.
  */
 export function useKeyboardShortcuts(): void {
   useEffect(() => {
@@ -40,6 +40,13 @@ export function useKeyboardShortcuts(): void {
       if (mod && event.key.toLowerCase() === 'e') {
         event.preventDefault()
         useSettingsStore.getState().toggleQueue()
+        return
+      }
+      if (mod && event.key.toLowerCase() === 'l') {
+        event.preventDefault()
+        if (usePlayerStore.getState().current || useSettingsStore.getState().nowPlayingOpen) {
+          useSettingsStore.getState().toggleNowPlaying()
+        }
         return
       }
       if (mod && event.key === ',') {

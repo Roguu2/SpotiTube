@@ -29,7 +29,7 @@ const TITLEBAR_HEIGHT = 44
 const PLAYER_BAR_HEIGHT = 88
 const SIDEBAR_WIDTH = 256
 
-function useEmbedActive(): boolean {
+export function useEmbedActive(): boolean {
   return useAudioEngineStore((s) => s.backend === 'embed' && s.transport.src !== null)
 }
 
@@ -43,43 +43,52 @@ export function EmbedMiniPlayer() {
   const hostRef = useRef<HTMLDivElement>(null)
   const active = useEmbedActive()
   const queueOpen = useSettingsStore((s) => s.queueOpen)
-  const { docked, corner, size, dockSlot, setLayout, cycleSize } = useEmbedLayoutStore()
+  const { docked, corner, size, dockSlot, stageSlot, setLayout, cycleSize } = useEmbedLayoutStore()
   const [slotRect, setSlotRect] = useState<DOMRect | null>(null)
+  // The Now playing view gives the player a big spot of its own; otherwise it may sit in the sidebar dock.
+  const slot = stageSlot ?? (docked ? dockSlot : null)
+  const staged = stageSlot !== null
   const [drag, setDrag] = useState<{ startX: number; startY: number; dx: number; dy: number } | null>(null)
 
   useEffect(() => {
     if (hostRef.current) getEmbedPlayer().attach(hostRef.current)
   }, [])
 
-  // Follow the sidebar slot while docked (window resizes, sidebar content changes).
+  // Follow the slot while docked or staged (window resizes, content changes around it).
   useEffect(() => {
-    if (!docked || !dockSlot) {
+    if (!slot) {
       setSlotRect(null)
       return
     }
-    const measure = (): void => setSlotRect(dockSlot.getBoundingClientRect())
+    const measure = (): void => setSlotRect(slot.getBoundingClientRect())
     measure()
     const observer = new ResizeObserver(measure)
-    observer.observe(dockSlot)
+    observer.observe(slot)
     observer.observe(document.body)
     window.addEventListener('resize', measure)
     return () => {
       observer.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [docked, dockSlot])
+  }, [slot])
 
-  const isDocked = docked && slotRect !== null
-  const video = isDocked ? { width: slotRect.width, height: DOCKED_VIDEO_HEIGHT } : VIDEO[size]
+  const isStaged = staged && slotRect !== null
+  const isDocked = !staged && docked && slotRect !== null
+  const video = isStaged
+    ? { width: slotRect.width, height: slotRect.height }
+    : isDocked
+      ? { width: slotRect.width, height: DOCKED_VIDEO_HEIGHT }
+      : VIDEO[size]
 
-  const position: CSSProperties = isDocked
-    ? { left: slotRect.left, top: slotRect.top }
-    : {
-        ...(corner.endsWith('right')
-          ? { right: GAP + (queueOpen ? QUEUE_PANEL_WIDTH : 0) }
-          : { left: SIDEBAR_WIDTH + GAP }),
-        ...(corner.startsWith('bottom') ? { bottom: PLAYER_BAR_HEIGHT + GAP } : { top: TITLEBAR_HEIGHT + GAP })
-      }
+  const position: CSSProperties =
+    isStaged || isDocked
+      ? { left: slotRect.left, top: slotRect.top }
+      : {
+          ...(corner.endsWith('right')
+            ? { right: GAP + (queueOpen ? QUEUE_PANEL_WIDTH : 0) }
+            : { left: SIDEBAR_WIDTH + GAP }),
+          ...(corner.startsWith('bottom') ? { bottom: PLAYER_BAR_HEIGHT + GAP } : { top: TITLEBAR_HEIGHT + GAP })
+        }
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if ((event.target as HTMLElement).closest('button')) return
@@ -119,49 +128,49 @@ export function EmbedMiniPlayer() {
         ...(drag ? { transform: `translate(${drag.dx}px, ${drag.dy}px)` } : {})
       }}
       className={cx(
-        'fixed z-30 overflow-hidden rounded-xl border border-white/10 bg-black shadow-2xl shadow-black/70',
+        'fixed z-30 overflow-hidden border bg-black shadow-2xl',
+        isStaged ? 'rounded-2xl border-white/8 shadow-black/60' : 'rounded-xl border-white/10 shadow-black/70',
         !drag && 'transition-[opacity,transform,top,left,right,bottom] duration-300',
         drag && 'cursor-grabbing shadow-black/90 ring-2 ring-white/20',
         active ? 'opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
       )}
     >
-      <div
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        title="Drag to move — drop on the sidebar to dock"
-        style={{ height: HEADER_HEIGHT }}
-        className={cx(
-          'flex min-w-0 touch-none items-center gap-1.5 border-b border-white/8 bg-surface-raised px-2 text-[11px] text-zinc-400 select-none',
-          drag ? 'cursor-grabbing' : 'cursor-grab'
-        )}
-      >
-        <GripHorizontal size={13} className="shrink-0 text-zinc-600" />
-        <SourceIcon source="ytmusic" size={12} className="shrink-0 text-[#ff4d4d]" />
-        <span className="truncate font-medium text-zinc-300">YouTube player</span>
-        <span
-          className="flex shrink-0 cursor-help items-center"
-          title="YouTube currently doesn't let apps stream full tracks directly, so this track plays through YouTube's official player. YouTube requires the player to stay visible; make it compact, move it, or dock it in the sidebar."
-        >
-          <Info size={12} />
-        </span>
-        <div className="ml-auto flex shrink-0 items-center">
-          {!isDocked && (
-            <HeaderButton
-              label={size === 'large' ? 'Compact player' : 'Larger player'}
-              onClick={cycleSize}
-            >
-              {size === 'large' ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-            </HeaderButton>
+      {!isStaged && (
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          title="Drag to move — drop on the sidebar to dock"
+          style={{ height: HEADER_HEIGHT }}
+          className={cx(
+            'flex min-w-0 touch-none items-center gap-1.5 border-b border-white/8 bg-surface-raised px-2 text-[11px] text-zinc-400 select-none',
+            drag ? 'cursor-grabbing' : 'cursor-grab'
           )}
-          <HeaderButton
-            label={isDocked ? 'Float over the window' : 'Dock in sidebar'}
-            onClick={() => setLayout({ docked: !isDocked })}
+        >
+          <GripHorizontal size={13} className="shrink-0 text-zinc-600" />
+          <SourceIcon source="ytmusic" size={12} className="shrink-0 text-[#ff4d4d]" />
+          <span className="truncate font-medium text-zinc-300">YouTube player</span>
+          <span
+            className="flex shrink-0 cursor-help items-center"
+            title="YouTube currently doesn't let apps stream full tracks directly, so this track plays through YouTube's official player. YouTube requires the player to stay visible; make it compact, move it, or dock it in the sidebar."
           >
-            {isDocked ? <PictureInPicture2 size={13} /> : <PanelLeft size={13} />}
-          </HeaderButton>
+            <Info size={12} />
+          </span>
+          <div className="ml-auto flex shrink-0 items-center">
+            {!isDocked && (
+              <HeaderButton label={size === 'large' ? 'Compact player' : 'Larger player'} onClick={cycleSize}>
+                {size === 'large' ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+              </HeaderButton>
+            )}
+            <HeaderButton
+              label={isDocked ? 'Float over the window' : 'Dock in sidebar'}
+              onClick={() => setLayout({ docked: !isDocked })}
+            >
+              {isDocked ? <PictureInPicture2 size={13} /> : <PanelLeft size={13} />}
+            </HeaderButton>
+          </div>
         </div>
-      </div>
+      )}
       <div
         ref={hostRef}
         style={{ width: video.width, height: video.height }}

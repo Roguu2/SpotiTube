@@ -13,9 +13,12 @@ interface EmbedLayout {
 interface EmbedLayoutState extends EmbedLayout {
   /** The sidebar element the docked player is laid over (it is never re-parented: that would reload it). */
   dockSlot: HTMLElement | null
+  /** A full-size spot (the Now playing view) that takes precedence over the corner or dock. */
+  stageSlot: HTMLElement | null
   setLayout(patch: Partial<EmbedLayout>): void
   cycleSize(): void
   setDockSlot(el: HTMLElement | null): void
+  setStageSlot(el: HTMLElement | null): void
 }
 
 const KEY = 'spotitube.embedLayout'
@@ -48,6 +51,7 @@ function write(layout: EmbedLayout): void {
 export const useEmbedLayoutStore = create<EmbedLayoutState>((set, get) => ({
   ...read(),
   dockSlot: null,
+  stageSlot: null,
 
   setLayout(patch) {
     set(patch)
@@ -62,5 +66,9 @@ export const useEmbedLayoutStore = create<EmbedLayoutState>((set, get) => ({
 
   setDockSlot(dockSlot) {
     set({ dockSlot })
+  },
+
+  setStageSlot(stageSlot) {
+    set({ stageSlot })
   }
 }))

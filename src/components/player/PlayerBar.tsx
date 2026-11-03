@@ -1,6 +1,7 @@
 import {
   ListMusic,
   LoaderCircle,
+  MicVocal,
   Pause,
   Pin,
   Play,
@@ -24,7 +25,6 @@ import { SleepTimerButton } from './SleepTimerButton'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
-import { useLibraryStore } from '@/store/useLibraryStore'
 
 export function PlayerBar() {
   return (
@@ -44,9 +44,8 @@ function NowPlaying() {
   const source = usePlayerStore((s) => s.source)
   const status = usePlayerStore((s) => s.status)
   const error = usePlayerStore((s) => s.error)
-  const context = usePlayerStore((s) => s.context)
-  const navigate = useLibraryStore((s) => s.navigate)
   const openQueue = useSettingsStore((s) => s.toggleQueue)
+  const toggleNowPlaying = useSettingsStore((s) => s.toggleNowPlaying)
 
   if (!current) {
     return <div className="text-[13px] text-zinc-600">Pick a track to start listening.</div>
@@ -59,11 +58,15 @@ function NowPlaying() {
     <div className="flex min-w-0 items-center gap-3">
       <button
         type="button"
-        aria-label={context?.playlistId ? `Open ${context.label}` : current.title}
-        onClick={() => context?.playlistId && navigate({ kind: 'playlist', playlistId: context.playlistId })}
-        className="shrink-0"
+        aria-label="Open Now playing"
+        title="Now playing & lyrics"
+        onClick={() => toggleNowPlaying()}
+        className="group relative shrink-0"
       >
         <Artwork src={current.artworkUrl} alt="" className="size-14 shadow-lg shadow-black/50" />
+        <span className="absolute inset-0 flex items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <MicVocal size={18} />
+        </span>
       </button>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
@@ -163,11 +166,22 @@ function RightControls() {
   const queueOpen = useSettingsStore((s) => s.queueOpen)
   const toggleQueue = useSettingsStore((s) => s.toggleQueue)
   const upcoming = usePlayerStore((s) => (s.current ? s.order.length - s.position - 1 : 0))
+  const hasTrack = usePlayerStore((s) => s.current !== null)
+  const nowPlayingOpen = useSettingsStore((s) => s.nowPlayingOpen)
+  const toggleNowPlaying = useSettingsStore((s) => s.toggleNowPlaying)
 
   const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
 
   return (
     <div className="flex items-center justify-end gap-2">
+      <IconButton
+        label={nowPlayingOpen ? 'Close lyrics' : 'Lyrics & Now playing'}
+        active={nowPlayingOpen}
+        disabled={!hasTrack}
+        onClick={() => toggleNowPlaying()}
+      >
+        <MicVocal size={17} />
+      </IconButton>
       <SleepTimerButton />
 
       <div className="relative">

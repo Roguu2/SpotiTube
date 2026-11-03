@@ -24,6 +24,9 @@
 - **Queue** — see what's playing and what's next; **Play next** / **Add to queue** on any track (right-click or ⋯),
   drag & drop or `Alt+↑/↓` to reorder, remove, clear, or jump to any entry. Queued tracks play before the rest of the
   playlist, and shuffle leaves them in place.
+- **Now playing & synced lyrics** — click the cover in the player bar (or `Ctrl/Cmd + L`) for a full-screen view
+  over a backdrop made from the album art, with time-synced lyrics from [LRCLIB](https://lrclib.net) that follow the
+  song. Click a line to jump there; nudge the sync if a version's timing differs.
 - **Autoplay & radio** — when the queue runs out, SpotiTube keeps going with similar tracks (shown as *Autoplay* at the
   end of the queue, so anything you queue still plays first; switch it off in the queue or in Settings).
   **Start radio** on any track builds an endless mix around it.
@@ -135,6 +138,7 @@ When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.
 | `M` | Mute |
 | `Ctrl/Cmd + F` | Find in the open playlist, otherwise Search |
 | `Ctrl/Cmd + E` | Toggle the queue |
+| `Ctrl/Cmd + L` | Now playing & lyrics (`Esc` closes) |
 | `Ctrl/Cmd + ,` | Settings |
 
 

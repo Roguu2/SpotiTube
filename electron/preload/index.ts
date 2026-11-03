@@ -92,6 +92,9 @@ const electronAPI: ElectronAPI = {
     getSession: () => invoke(IpcChannels.historyGetSession),
     saveSession: (session) => invoke(IpcChannels.historySaveSession, session),
     savePosition: (position, currentTime) => invoke(IpcChannels.historySavePosition, position, currentTime)
+  },
+  lyrics: {
+    get: (track) => invoke(IpcChannels.lyricsGet, track)
   }
 }
 

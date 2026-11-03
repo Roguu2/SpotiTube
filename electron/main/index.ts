@@ -6,6 +6,7 @@ import { registerLibraryIpc } from './ipc/library'
 import { registerDspIpc } from './ipc/dsp'
 import { registerUpdateIpc } from './ipc/updates'
 import { registerHistoryIpc } from './ipc/history'
+import { registerLyricsIpc } from './ipc/lyrics'
 import { UpdateService } from './services/updater'
 import { getSettings } from './services/store'
 import { YouTubeClient } from './services/youtube'
@@ -95,6 +96,7 @@ async function bootstrap(): Promise<void> {
   registerLibraryIpc({ registry, spotifyAuth, spotify, hybrid, youtube })
   registerDspIpc()
   registerHistoryIpc()
+  registerLyricsIpc()
 
   const updates = new UpdateService()
   registerUpdateIpc(updates)

@@ -23,6 +23,8 @@ interface SettingsState {
   connecting: 'spotify' | 'ytmusic' | null
   queueOpen: boolean
   settingsOpen: boolean
+  /** Full-screen Now playing view with lyrics. */
+  nowPlayingOpen: boolean
 
   load(): Promise<void>
   update(patch: AppSettingsPatch): Promise<void>
@@ -33,6 +35,7 @@ interface SettingsState {
   disconnectYouTubeMusic(): Promise<void>
   toggleQueue(open?: boolean): void
   setSettingsOpen(open: boolean): void
+  toggleNowPlaying(open?: boolean): void
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -42,6 +45,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   connecting: null,
   queueOpen: readQueueOpen(),
   settingsOpen: false,
+  nowPlayingOpen: false,
 
   async load() {
     const [appInfo, settings, auth] = await Promise.all([
@@ -102,6 +106,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   async disconnectYouTubeMusic() {
     set({ auth: await window.electronAPI.auth.disconnectYouTubeMusic() })
     toast.info('YouTube Music disconnected')
+  },
+
+  toggleNowPlaying(open) {
+    set({ nowPlayingOpen: open ?? !get().nowPlayingOpen })
   },
 
   toggleQueue(open) {

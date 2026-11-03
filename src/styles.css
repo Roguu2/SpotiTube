@@ -171,3 +171,26 @@
     animation: none;
   }
 }
+
+/* ── Now playing backdrop ─────────────────────────────────────────────── */
+
+@keyframes st-drift {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(28deg) scale(1.18);
+  }
+}
+
+.st-drift {
+  transform: translate(-50%, -50%);
+  animation: st-drift 45s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-drift {
+    animation: none;
+  }
+}

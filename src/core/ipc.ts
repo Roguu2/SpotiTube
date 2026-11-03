@@ -61,7 +61,9 @@ export const IpcChannels = {
   historyClear: 'history:clear',
   historyGetSession: 'history:get-session',
   historySaveSession: 'history:save-session',
-  historySavePosition: 'history:save-position'
+  historySavePosition: 'history:save-position',
+
+  lyricsGet: 'lyrics:get'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -183,6 +185,22 @@ export interface NowPlayingInfo {
 
 export type Unsubscribe = () => void
 
+export interface LyricLine {
+  /** Seconds from the start of the recording. */
+  time: number
+  /** Empty for instrumental breaks. */
+  text: string
+}
+
+export interface Lyrics {
+  /** Time-synced lines, when the database has them. */
+  synced: LyricLine[] | null
+  plain: string | null
+  instrumental: boolean
+  /** Length of the recording the lyrics were timed against. */
+  durationSec: number | null
+}
+
 export interface ElectronAPI {
   app: {
     getInfo(): Promise<AppInfo>
@@ -257,5 +275,9 @@ export interface ElectronAPI {
     saveSession(session: PlaybackSession | null): Promise<void>
     /** Saves only which track and second the session is at — cheap enough to call often. */
     savePosition(position: number, currentTime: number): Promise<void>
+  }
+  lyrics: {
+    /** `null` when no lyrics are known for the track. */
+    get(track: UnifiedTrack): Promise<Lyrics | null>
   }
 }

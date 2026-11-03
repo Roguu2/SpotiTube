@@ -11,6 +11,7 @@ import { PlayerBar } from './components/player/PlayerBar'
 import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
 import { QueuePanel } from './components/queue/QueuePanel'
 import { SettingsModal } from './components/settings/SettingsModal'
+import { NowPlayingView } from './components/nowplaying/NowPlayingView'
 import { Toasts } from './components/ui/Toasts'
 import { useAppBootstrap } from './hooks/useAppBootstrap'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -25,6 +26,7 @@ export function App() {
 
   const appInfo = useSettingsStore((s) => s.appInfo)
   const queueOpen = useSettingsStore((s) => s.queueOpen)
+  const nowPlayingOpen = useSettingsStore((s) => s.nowPlayingOpen)
   const view = useLibraryStore((s) => s.view)
   const mainRef = useRef<HTMLElement>(null)
 
@@ -38,7 +40,7 @@ export function App() {
   return (
     <div className="flex h-full flex-col bg-base">
       <TitleBar platform={appInfo.platform} />
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         <Sidebar />
         <main
           ref={mainRef}
@@ -52,6 +54,7 @@ export function App() {
           {view.kind === 'history' && <HistoryView />}
         </main>
         <AnimatePresence initial={false}>{queueOpen && <QueuePanel key="queue" />}</AnimatePresence>
+        <AnimatePresence>{nowPlayingOpen && <NowPlayingView key="now-playing" />}</AnimatePresence>
       </div>
       <PlayerBar />
       <EmbedMiniPlayer />
