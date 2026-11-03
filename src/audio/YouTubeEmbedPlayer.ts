@@ -284,8 +284,16 @@ export class YouTubeEmbedPlayer {
 
   private applyAudio(): void {
     // Same perceptual curve as the DSP engine so the volume slider feels identical.
-    this.command('setVolume', [Math.round(this.volume * this.volume * 100)])
-    this.command(this.muted ? 'mute' : 'unMute')
+    const level = Math.round(this.volume * this.volume * 100)
+    if (this.muted || this.volume <= 0) {
+      // YouTube treats "volume 0 + unMute" as unmuted and bumps the volume back up to 5,
+      // so silence has to be an explicit mute.
+      this.command('mute')
+    } else {
+      // Tiny slider values would round to 0 and fall into the same trap.
+      this.command('setVolume', [Math.max(1, level)])
+      this.command('unMute')
+    }
     this.command('setPlaybackRate', [this.rate])
   }
 

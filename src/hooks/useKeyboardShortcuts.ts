@@ -4,8 +4,12 @@ import { useLibraryStore } from '@/store/useLibraryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 
-function isTyping(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null
+/** The focused element, if the event came from one (keys can also target the window or document). */
+function targetElement(event: KeyboardEvent): HTMLElement | null {
+  return event.target instanceof HTMLElement ? event.target : null
+}
+
+function isTyping(el: HTMLElement | null): boolean {
   if (!el) return false
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
 }
@@ -38,24 +42,25 @@ export function useKeyboardShortcuts(): void {
       }
 
       // Everything below is for the focused window only, never while typing or on a focused control.
-      if (isTyping(event.target) || (event.target as HTMLElement | null)?.getAttribute('role') === 'slider') return
+      const target = targetElement(event)
+      if (isTyping(target) || target?.getAttribute('role') === 'slider') return
       if (!engine.hydrated) return
 
       switch (event.key) {
         case ' ':
-          if ((event.target as HTMLElement | null)?.tagName === 'BUTTON') return
+          if (target?.tagName === 'BUTTON') return
           event.preventDefault()
           void player.togglePlay()
           break
         case 'ArrowRight':
           event.preventDefault()
           if (mod) void player.next()
-          else engine.seek(engine.transport.currentTime + 5)
+          else player.seek(player.currentTime() + 5)
           break
         case 'ArrowLeft':
           event.preventDefault()
           if (mod) void player.previous()
-          else engine.seek(engine.transport.currentTime - 5)
+          else player.seek(player.currentTime() - 5)
           break
         case 'ArrowUp':
           event.preventDefault()

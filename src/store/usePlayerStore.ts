@@ -34,6 +34,13 @@ interface PlayerState {
   setResumeAt(seconds: number): void
   playQueue(tracks: UnifiedTrack[], startIndex: number, context: QueueContext): Promise<void>
   togglePlay(): Promise<void>
+  /** Starts or resumes playback — including a restored track that has not been loaded yet. */
+  play(): Promise<void>
+  pause(): void
+  /** Seeks the playing track, or moves a restored track's resume point before it is loaded. */
+  seek(seconds: number): void
+  /** Playhead of the current track, loaded or not. */
+  currentTime(): number
   next(auto?: boolean): Promise<void>
   previous(): Promise<void>
   toggleShuffle(): void
@@ -245,6 +252,31 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       consecutiveFailures = 0
       set({ queue: tracks, order, manual: [], context })
       await start(get().shuffle ? 0 : index)
+    },
+
+    async play() {
+      const { current, status } = get()
+      if (!current) return
+      if (status === 'idle' || status === 'error') {
+        await start(get().position, get().resumeAt ?? undefined)
+        return
+      }
+      await useAudioEngineStore.getState().play()
+    },
+
+    pause() {
+      if (get().status === 'ready') useAudioEngineStore.getState().pause()
+    },
+
+    seek(seconds) {
+      if (get().status === 'idle' && get().current) get().setResumeAt(seconds)
+      else useAudioEngineStore.getState().seek(seconds)
+    },
+
+    currentTime() {
+      const { status, current, resumeAt } = get()
+      if (status === 'idle' && current) return resumeAt ?? 0
+      return useAudioEngineStore.getState().transport.currentTime
     },
 
     async togglePlay() {

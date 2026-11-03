@@ -29,6 +29,9 @@ export function usePlaybackPersistence(): void {
     let queueTimer: number | null = null
     let lastPositionSave = 0
     let clearedForSetting = false
+    // The queue is large and changes rarely; the playhead is tiny and changes constantly.
+    // Only queue changes trigger the full (expensive) save; everything else saves the position.
+    let queueDirty = true
 
     const save = (): void => {
       if (!restored) return
@@ -37,15 +40,24 @@ export function usePlaybackPersistence(): void {
       if (!settings.restoreSession) {
         if (!clearedForSetting) void window.electronAPI.history.saveSession(null).catch(() => undefined)
         clearedForSetting = true
+        queueDirty = true
         return
       }
       clearedForSetting = false
       const session = snapshot()
       if (!session) return
       lastPositionSave = Date.now()
-      void window.electronAPI.history.saveSession(session).catch((error: unknown) => {
-        console.error('Failed to save playback session:', error)
-      })
+      if (queueDirty) {
+        queueDirty = false
+        void window.electronAPI.history.saveSession(session).catch((error: unknown) => {
+          queueDirty = true
+          console.error('Failed to save playback session:', error)
+        })
+      } else {
+        void window.electronAPI.history.savePosition(session.position, session.currentTime).catch((error: unknown) => {
+          console.error('Failed to save playback position:', error)
+        })
+      }
     }
 
     const scheduleSave = (): void => {
@@ -70,17 +82,15 @@ export function usePlaybackPersistence(): void {
     void useHistoryStore.getState().load()
 
     const offPlayer = usePlayerStore.subscribe((state, prev) => {
-      if (
+      const queueChanged =
         state.queue !== prev.queue ||
         state.order !== prev.order ||
-        state.position !== prev.position ||
         state.manual !== prev.manual ||
+        state.context !== prev.context ||
         state.shuffle !== prev.shuffle ||
-        state.repeat !== prev.repeat ||
-        state.resumeAt !== prev.resumeAt
-      ) {
-        scheduleSave()
-      }
+        state.repeat !== prev.repeat
+      if (queueChanged) queueDirty = true
+      if (queueChanged || state.position !== prev.position || state.resumeAt !== prev.resumeAt) scheduleSave()
     })
 
     // One history entry per time a track is heard; repeat-one and replays count again.

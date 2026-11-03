@@ -59,7 +59,8 @@ export const IpcChannels = {
   historyRecordPlay: 'history:record-play',
   historyClear: 'history:clear',
   historyGetSession: 'history:get-session',
-  historySaveSession: 'history:save-session'
+  historySaveSession: 'history:save-session',
+  historySavePosition: 'history:save-position'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -249,5 +250,7 @@ export interface ElectronAPI {
     getSession(): Promise<PlaybackSession | null>
     /** `null` forgets the saved session. */
     saveSession(session: PlaybackSession | null): Promise<void>
+    /** Saves only which track and second the session is at — cheap enough to call often. */
+    savePosition(position: number, currentTime: number): Promise<void>
   }
 }

@@ -34,23 +34,23 @@ export function useAppBootstrap(): void {
     })
 
     const player = usePlayerStore.getState
-    const engine = useAudioEngineStore.getState
     const offMedia = window.electronAPI.media.onCommand((command) => {
       if (command === 'play-pause') void player().togglePlay()
       else if (command === 'next') void player().next()
       else if (command === 'previous') void player().previous()
-      else if (command === 'stop') engine().pause()
+      else if (command === 'stop') player().pause()
     })
 
     if ('mediaSession' in navigator) {
       const session = navigator.mediaSession
-      session.setActionHandler('play', () => void engine().play())
-      session.setActionHandler('pause', () => engine().pause())
+      // Through the player, so a restored (not yet loaded) track starts too.
+      session.setActionHandler('play', () => void player().play())
+      session.setActionHandler('pause', () => player().pause())
       session.setActionHandler('previoustrack', () => void player().previous())
       session.setActionHandler('nexttrack', () => void player().next())
-      session.setActionHandler('seekto', (details) => details.seekTime !== undefined && engine().seek(details.seekTime))
-      session.setActionHandler('seekbackward', (d) => engine().seek(engine().transport.currentTime - (d.seekOffset ?? SEEK_STEP_SECONDS)))
-      session.setActionHandler('seekforward', (d) => engine().seek(engine().transport.currentTime + (d.seekOffset ?? SEEK_STEP_SECONDS)))
+      session.setActionHandler('seekto', (details) => details.seekTime !== undefined && player().seek(details.seekTime))
+      session.setActionHandler('seekbackward', (d) => player().seek(player().currentTime() - (d.seekOffset ?? SEEK_STEP_SECONDS)))
+      session.setActionHandler('seekforward', (d) => player().seek(player().currentTime() + (d.seekOffset ?? SEEK_STEP_SECONDS)))
     }
 
     // Auto-advance, OS playback state and the tray tooltip follow the transport.

@@ -89,7 +89,8 @@ const electronAPI: ElectronAPI = {
     recordPlay: (track, context) => invoke(IpcChannels.historyRecordPlay, track, context),
     clear: () => invoke(IpcChannels.historyClear),
     getSession: () => invoke(IpcChannels.historyGetSession),
-    saveSession: (session) => invoke(IpcChannels.historySaveSession, session)
+    saveSession: (session) => invoke(IpcChannels.historySaveSession, session),
+    savePosition: (position, currentTime) => invoke(IpcChannels.historySavePosition, position, currentTime)
   }
 }
 

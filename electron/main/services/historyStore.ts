@@ -8,17 +8,36 @@ const MAX_PLAYS = 500
 const MAX_SESSION_TRACKS = 5_000
 const REPEAT_MODES = new Set<PlaybackSession['repeat']>(['off', 'all', 'one'])
 
-interface HistoryStoreSchema {
-  plays: PlayRecord[]
-  session: PlaybackSession | null
+/** The queue part of a session: large, but only changes when the queue does. */
+type SavedQueue = Omit<PlaybackSession, 'position' | 'currentTime'>
+
+/** The playhead part: tiny, rewritten every few seconds while music plays. */
+interface SavedPosition {
+  position: number
+  currentTime: number
+  savedAt: number
 }
 
-// A dedicated file: the session is rewritten every few seconds while music plays.
-const store = new Store<HistoryStoreSchema>({
+// Three files so that frequent writes stay small: electron-store rewrites a whole
+// file on every change, and the playhead is saved every few seconds.
+const historyStore = new Store<{ plays: PlayRecord[]; session?: PlaybackSession | null }>({
   name: 'history',
   accessPropertiesByDotNotation: false,
-  defaults: { plays: [], session: null }
+  defaults: { plays: [] }
 })
+const queueStore = new Store<{ queue: SavedQueue | null }>({
+  name: 'session',
+  accessPropertiesByDotNotation: false,
+  defaults: { queue: null }
+})
+const positionStore = new Store<{ position: SavedPosition | null }>({
+  name: 'session-position',
+  accessPropertiesByDotNotation: false,
+  defaults: { position: null }
+})
+
+/** Length of the saved play order, kept in memory so position saves never read the big file. */
+let savedOrderLength: number | null = null
 
 function isTrack(value: unknown): value is UnifiedTrack {
   const track = value as UnifiedTrack | null
@@ -44,28 +63,63 @@ function isIndex(value: unknown, length: number): value is number {
   return Number.isInteger(value) && (value as number) >= 0 && (value as number) < length
 }
 
+function cleanTime(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
+}
+
 export function getPlays(): PlayRecord[] {
-  return store.get('plays')
+  return historyStore.get('plays')
 }
 
 export function recordPlay(track: unknown, context: unknown): void {
   if (!isTrack(track)) throw new TypeError('Invalid track payload')
   const clean = sanitizeContext(context)
   const play: PlayRecord = clean ? { track, playedAt: Date.now(), context: clean } : { track, playedAt: Date.now() }
-  store.set('plays', [play, ...store.get('plays')].slice(0, MAX_PLAYS))
+  historyStore.set('plays', [play, ...historyStore.get('plays')].slice(0, MAX_PLAYS))
 }
 
 export function clearPlays(): void {
-  store.set('plays', [])
+  historyStore.set('plays', [])
+}
+
+/** Moves a session saved by 0.2.0 (inside history.json) into the split files, once. */
+function migrateLegacySession(): void {
+  const legacy = historyStore.get('session')
+  if (legacy === undefined) return
+  historyStore.delete('session')
+  if (legacy && !queueStore.get('queue')) {
+    try {
+      saveSession(legacy)
+    } catch {
+      // An unreadable old session is simply dropped.
+    }
+  }
 }
 
 export function getSession(): PlaybackSession | null {
-  return store.get('session')
+  migrateLegacySession()
+  const queue = queueStore.get('queue')
+  if (!queue) {
+    savedOrderLength = null
+    return null
+  }
+  savedOrderLength = queue.order.length
+  const saved = positionStore.get('position')
+  const position = saved && isIndex(saved.position, queue.order.length) ? saved.position : 0
+  return {
+    ...queue,
+    position,
+    currentTime: saved && isIndex(saved.position, queue.order.length) ? saved.currentTime : 0,
+    savedAt: Math.max(queue.savedAt, saved?.savedAt ?? 0)
+  }
 }
 
+/** Saves the whole session (queue and playhead). `null` forgets it. */
 export function saveSession(input: unknown): void {
   if (input === null) {
-    store.set('session', null)
+    queueStore.set('queue', null)
+    positionStore.set('position', null)
+    savedOrderLength = null
     return
   }
   const session = input as Partial<PlaybackSession> | null
@@ -77,15 +131,23 @@ export function saveSession(input: unknown): void {
   const order = session.order.filter((i) => isIndex(i, queue.length))
   if (!order.length || !isIndex(session.position, order.length)) throw new TypeError('Invalid playback position')
 
-  store.set('session', {
+  const now = Date.now()
+  queueStore.set('queue', {
     queue,
     order,
-    position: session.position,
     manual: session.manual.filter((i) => isIndex(i, queue.length)),
     context: sanitizeContext(session.context),
     shuffle: session.shuffle === true,
     repeat: REPEAT_MODES.has(session.repeat as PlaybackSession['repeat']) ? (session.repeat as PlaybackSession['repeat']) : 'off',
-    currentTime: typeof session.currentTime === 'number' && session.currentTime > 0 ? session.currentTime : 0,
-    savedAt: Date.now()
+    savedAt: now
   })
+  positionStore.set('position', { position: session.position, currentTime: cleanTime(session.currentTime), savedAt: now })
+  savedOrderLength = order.length
+}
+
+/** Saves only the playhead — the frequent, cheap write while music plays. */
+export function savePosition(position: unknown, currentTime: unknown): void {
+  // Without a saved queue there is nothing to position; the next full save covers it.
+  if (savedOrderLength === null || !isIndex(position, savedOrderLength)) return
+  positionStore.set('position', { position, currentTime: cleanTime(currentTime), savedAt: Date.now() })
 }
