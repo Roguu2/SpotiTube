@@ -80,7 +80,9 @@ export const IpcChannels = {
   syncNow: 'sync:now',
   syncGetSession: 'sync:get-session',
   syncStatusChanged: 'sync:status-changed',
-  syncApplied: 'sync:applied'
+  syncApplied: 'sync:applied',
+
+  presenceUpdate: 'presence:update'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -95,6 +97,8 @@ export interface AppInfo {
   version: string
   platform: DesktopPlatform
   isDev: boolean
+  /** This build has a Discord application to show the status under. */
+  discordAvailable: boolean
 }
 
 export interface ProviderStatus {
@@ -141,6 +145,8 @@ export interface AppSettings {
   smoothFades: boolean
   /** Serve the phone remote on the local network. */
   remoteEnabled: boolean
+  /** Show what's playing as your Discord status. */
+  discordPresence: boolean
 }
 
 /** Where a play started from, as shown in the queue and in Recently played. */
@@ -197,6 +203,20 @@ export interface UpdateState {
 export type AppSettingsPatch = Partial<Omit<AppSettings, 'spotifyRedirectUri'>>
 
 export type MediaCommand = 'play-pause' | 'next' | 'previous' | 'stop'
+
+/** What Discord shows while a track plays. */
+export interface PresenceInfo {
+  title: string
+  artists: string
+  album?: string
+  artworkUrl?: string
+  source: SourceId
+  /** Link for the "Open on …" button, when the track exists outside SpotiTube. */
+  url?: string
+  isPlaying: boolean
+  position: number
+  duration: number
+}
 
 export interface NowPlayingInfo {
   title: string
@@ -402,6 +422,10 @@ export interface ElectronAPI {
     getSession(deviceId: string): Promise<PlaybackSession | null>
     onStatusChange(listener: (status: SyncStatus) => void): Unsubscribe
     onApplied(listener: (applied: SyncApplied) => void): Unsubscribe
+  }
+  presence: {
+    /** Turns the Discord status on or off and sets what it shows. */
+    update(enabled: boolean, info: PresenceInfo | null): void
   }
   remote: {
     getStatus(): Promise<RemoteStatus>

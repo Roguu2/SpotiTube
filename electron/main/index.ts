@@ -1,5 +1,6 @@
-import { app, BrowserWindow, session } from 'electron'
+import { app, BrowserWindow, ipcMain, session } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { IpcChannels, type PresenceInfo } from '@core/ipc'
 import { createMainWindow } from './window'
 import { registerWindowIpc } from './ipc/window'
 import { registerLibraryIpc } from './ipc/library'
@@ -10,6 +11,8 @@ import { registerLyricsIpc } from './ipc/lyrics'
 import { initRemote, stopRemote } from './remote'
 import { registerSyncIpc } from './ipc/sync'
 import { flushSync } from './services/sync'
+import { DiscordPresence } from './services/discord'
+import { isTrustedSender } from './ipc/handle'
 import { UpdateService } from './services/updater'
 import { getSettings } from './services/store'
 import { YouTubeClient } from './services/youtube'
@@ -104,6 +107,13 @@ async function bootstrap(): Promise<void> {
   initRemote((query) => providers.search(query))
   registerSyncIpc()
 
+  const presence = new DiscordPresence()
+  ipcMain.on(IpcChannels.presenceUpdate, (event, enabled: unknown, info: PresenceInfo | null) => {
+    if (!isTrustedSender(event)) return
+    presence.setEnabled(enabled === true)
+    presence.update(enabled === true ? info : null)
+  })
+
   const updates = new UpdateService()
   registerUpdateIpc(updates)
   updates.start()
@@ -123,6 +133,7 @@ async function bootstrap(): Promise<void> {
     unregisterMediaKeys()
     stopRemote()
     flushSync()
+    presence.destroy()
     updates.stop()
     proxy.stop()
     tray?.destroy()

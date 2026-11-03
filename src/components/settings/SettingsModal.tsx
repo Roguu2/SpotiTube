@@ -214,9 +214,21 @@ function YouTubeMusicSection() {
   )
 }
 
-function SettingToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
+function SettingToggle({
+  label,
+  description,
+  checked,
+  onChange,
+  disabled = false
+}: {
+  label: string
+  description: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
+}) {
   return (
-    <label className="flex cursor-pointer items-start justify-between gap-6">
+    <label className={cx('flex items-start justify-between gap-6', disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer')}>
       <span>
         <span className="block text-[13px] font-medium text-zinc-200">{label}</span>
         <span className="block text-[11.5px] text-zinc-500">{description}</span>
@@ -226,6 +238,7 @@ function SettingToggle({ label, description, checked, onChange }: { label: strin
         role="switch"
         aria-checked={checked}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cx('relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors', checked ? 'bg-spotify' : 'bg-white/15')}
       >
@@ -469,6 +482,7 @@ function UpdatesSection() {
 
 function PlaybackSection() {
   const settings = useSettingsStore((s) => s.settings)
+  const appInfo = useSettingsStore((s) => s.appInfo)
   const update = useSettingsStore((s) => s.update)
   const playCount = useHistoryStore((s) => s.plays.length)
   const clearHistory = useHistoryStore((s) => s.clear)
@@ -502,6 +516,17 @@ function PlaybackSection() {
         description="Keep playing in the system tray when the window is closed."
         checked={settings.closeToTray}
         onChange={(v) => void update({ closeToTray: v })}
+      />
+      <SettingToggle
+        label="Discord status"
+        description={
+          appInfo?.discordAvailable
+            ? "Show the song you're listening to on your Discord profile while it plays (Discord must be running)."
+            : 'Not available in this build yet.'
+        }
+        checked={settings.discordPresence && !!appInfo?.discordAvailable}
+        disabled={!appInfo?.discordAvailable}
+        onChange={(v) => void update({ discordPresence: v })}
       />
       <SettingToggle
         label="Autoplay similar tracks"

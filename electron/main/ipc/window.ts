@@ -3,6 +3,7 @@ import { is } from '@electron-toolkit/utils'
 import { IpcChannels, type AppInfo, type DesktopPlatform } from '@core/ipc'
 import { isMiniMode, setMiniMode } from '../services/windowState'
 import { isTrustedSender } from './handle'
+import { DISCORD_APPLICATION_ID } from '../services/discord'
 
 function senderWindow(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender)
@@ -15,7 +16,8 @@ export function registerWindowIpc(): void {
       name: app.getName(),
       version: app.getVersion(),
       platform: process.platform as DesktopPlatform,
-      isDev: is.dev
+      isDev: is.dev,
+      discordAvailable: DISCORD_APPLICATION_ID !== ''
     })
   )
 

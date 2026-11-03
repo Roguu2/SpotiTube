@@ -43,7 +43,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   restoreSession: true,
   autoplay: true,
   smoothFades: true,
-  remoteEnabled: false
+  remoteEnabled: false,
+  discordPresence: false
 }
 
 const store = new Store<PersistedState>({
@@ -75,6 +76,7 @@ export function updateSettings(patch: AppSettingsPatch): AppSettings {
   if (patch.autoplay !== undefined) next.autoplay = patch.autoplay
   if (patch.smoothFades !== undefined) next.smoothFades = patch.smoothFades
   if (patch.remoteEnabled !== undefined) next.remoteEnabled = patch.remoteEnabled
+  if (patch.discordPresence !== undefined) next.discordPresence = patch.discordPresence
   store.set('settings', next)
   return getSettings()
 }

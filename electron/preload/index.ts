@@ -111,6 +111,9 @@ const electronAPI: ElectronAPI = {
     onStatusChange: (listener) => subscribe<[SyncStatus]>(IpcChannels.syncStatusChanged, listener),
     onApplied: (listener) => subscribe<[SyncApplied]>(IpcChannels.syncApplied, listener)
   },
+  presence: {
+    update: (enabled, info) => ipcRenderer.send(IpcChannels.presenceUpdate, enabled, info)
+  },
   remote: {
     getStatus: () => invoke(IpcChannels.remoteGetStatus),
     setEnabled: (enabled) => invoke(IpcChannels.remoteSetEnabled, enabled),
