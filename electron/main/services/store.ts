@@ -124,6 +124,10 @@ export function saveHybridPlaylists(playlists: HybridPlaylistRecord[]): void {
   store.set('hybridPlaylists', playlists)
 }
 
+export function getStreamOverrides(): Record<string, StreamCandidate> {
+  return store.get('streamOverrides')
+}
+
 export function getStreamOverride(trackId: string): StreamCandidate | undefined {
   return store.get('streamOverrides')[trackId]
 }

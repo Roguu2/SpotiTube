@@ -7,6 +7,8 @@ import {
   type MediaCommand,
   type RemoteCommand,
   type RemoteStatus,
+  type SyncApplied,
+  type SyncStatus,
   type UpdateState
 } from '@core/ipc'
 
@@ -99,6 +101,15 @@ const electronAPI: ElectronAPI = {
   },
   lyrics: {
     get: (track) => invoke(IpcChannels.lyricsGet, track)
+  },
+  sync: {
+    getStatus: () => invoke(IpcChannels.syncGetStatus),
+    chooseFolder: () => invoke(IpcChannels.syncChooseFolder),
+    stop: () => invoke(IpcChannels.syncStop),
+    syncNow: () => invoke(IpcChannels.syncNow),
+    getSession: (deviceId) => invoke(IpcChannels.syncGetSession, deviceId),
+    onStatusChange: (listener) => subscribe<[SyncStatus]>(IpcChannels.syncStatusChanged, listener),
+    onApplied: (listener) => subscribe<[SyncApplied]>(IpcChannels.syncApplied, listener)
   },
   remote: {
     getStatus: () => invoke(IpcChannels.remoteGetStatus),

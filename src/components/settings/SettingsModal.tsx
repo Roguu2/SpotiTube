@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowDownToLine, Check, Copy, ExternalLink, LoaderCircle, RotateCw, Smartphone } from 'lucide-react'
+import { ArrowDownToLine, Check, Copy, ExternalLink, FolderSync, LoaderCircle, RotateCw, Smartphone } from 'lucide-react'
 import type { UpdateState } from '@core/ipc'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/IconButton'
@@ -9,6 +9,7 @@ import { useUpdateStore } from '@/store/useUpdateStore'
 import { useHistoryStore } from '@/store/useHistoryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useRemoteStore } from '@/store/useRemoteStore'
+import { useSyncStore } from '@/store/useSyncStore'
 import { cx } from '@/lib/format'
 
 export function SettingsModal() {
@@ -23,6 +24,7 @@ export function SettingsModal() {
         <YouTubeMusicSection />
         <PlaybackSection />
         <RemoteSection />
+        <SyncSection />
         <UpdatesSection />
         <section className="px-6 py-4 text-[12px] text-zinc-500">
           SpotiTube {appInfo ? `v${appInfo.version}` : ''} · Credentials and cookies are encrypted with your operating
@@ -230,6 +232,82 @@ function SettingToggle({ label, description, checked, onChange }: { label: strin
         <span className={cx('absolute top-0.5 size-4 rounded-full bg-white shadow transition-[left]', checked ? 'left-[18px]' : 'left-0.5')} />
       </button>
     </label>
+  )
+}
+
+function ago(at: number | null): string {
+  if (!at) return 'never'
+  const minutes = Math.round((Date.now() - at) / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`
+}
+
+function SyncSection() {
+  const status = useSyncStore((s) => s.status)
+  const busy = useSyncStore((s) => s.busy)
+  const load = useSyncStore((s) => s.load)
+  const chooseFolder = useSyncStore((s) => s.chooseFolder)
+  const stop = useSyncStore((s) => s.stop)
+  const syncNow = useSyncStore((s) => s.syncNow)
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  if (!status) return null
+
+  return (
+    <section className="space-y-4 px-6 py-5">
+      <h3 className="flex items-center gap-2.5 text-[14px] font-semibold">
+        <FolderSync size={15} className="text-zinc-400" /> Sync between computers
+      </h3>
+      <p className="text-[12px] leading-relaxed text-zinc-500">
+        Pick a folder you already sync — OneDrive, Dropbox, iCloud Drive or Google Drive — on each computer. Hybrid
+        playlists, chosen song versions, playback settings and listening history follow you, and you can continue a song
+        where another computer left off. Accounts and passwords never sync.
+      </p>
+      {status.enabled ? (
+        <div className="space-y-3 rounded-lg bg-black/25 px-3.5 py-3 ring-1 ring-white/6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="truncate font-mono text-[11.5px] text-zinc-300" title={status.folder ?? undefined}>
+                {status.folder}
+              </div>
+              <div className="text-[11.5px] text-zinc-500">
+                This computer: {status.deviceName} · last synced {ago(status.lastSyncAt)}
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void syncNow()}>
+                {busy ? <LoaderCircle size={13} className="animate-spin" /> : <RotateCw size={13} />} Sync now
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => void stop()}>
+                Stop
+              </Button>
+            </div>
+          </div>
+          {status.error && <p className="text-[12px] text-red-400">{status.error}</p>}
+          {status.devices.length > 0 ? (
+            <ul className="space-y-1 text-[12px] text-zinc-400">
+              {status.devices.map((device) => (
+                <li key={device.id} className="flex justify-between gap-4">
+                  <span className="truncate">{device.name}</span>
+                  <span className="shrink-0 text-zinc-500">seen {ago(device.lastSeenAt)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[12px] text-zinc-500">No other computer in this folder yet — choose the same folder there.</p>
+          )}
+        </div>
+      ) : (
+        <Button variant="secondary" disabled={busy} onClick={() => void chooseFolder()}>
+          {busy ? <LoaderCircle size={14} className="animate-spin" /> : <FolderSync size={14} />} Choose sync folder…
+        </Button>
+      )}
+    </section>
   )
 }
 

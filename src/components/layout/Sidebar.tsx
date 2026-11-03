@@ -3,6 +3,7 @@ import { History, Library, Plus, Search, Settings, Volume2 } from 'lucide-react'
 import type { UnifiedPlaylist } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { UpdateBanner } from './UpdateBanner'
+import { ContinueCard } from './ContinueCard'
 import { EmbedDockSlot } from '@/components/player/EmbedMiniPlayer'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { useLibraryStore, type LibraryFilter } from '@/store/useLibraryStore'
@@ -121,6 +122,7 @@ export function Sidebar() {
         ))}
       </ul>
 
+      <ContinueCard />
       <EmbedDockSlot />
       <UpdateBanner />
       <footer className="flex items-center gap-2 border-t border-white/5 px-3 py-3">

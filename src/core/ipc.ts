@@ -72,7 +72,15 @@ export const IpcChannels = {
   remoteResetPairing: 'remote:reset-pairing',
   remoteStatusChanged: 'remote:status-changed',
   remoteCommand: 'remote:command',
-  remotePublishState: 'remote:publish-state'
+  remotePublishState: 'remote:publish-state',
+
+  syncGetStatus: 'sync:get-status',
+  syncChooseFolder: 'sync:choose-folder',
+  syncStop: 'sync:stop',
+  syncNow: 'sync:now',
+  syncGetSession: 'sync:get-session',
+  syncStatusChanged: 'sync:status-changed',
+  syncApplied: 'sync:applied'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -273,6 +281,35 @@ export interface RemoteStatus {
   error: string | null
 }
 
+/** A session another computer was in the middle of, offered as "Continue here". */
+export interface RemoteSessionInfo {
+  deviceId: string
+  deviceName: string
+  savedAt: number
+  currentTime: number
+  track: { title: string; artists: string; artworkUrl?: string }
+}
+
+export interface SyncStatus {
+  enabled: boolean
+  folder: string | null
+  /** This computer's name as the others see it. */
+  deviceName: string
+  lastSyncAt: number | null
+  error: string | null
+  /** The other computers syncing through the folder. */
+  devices: { id: string; name: string; platform: string; lastSeenAt: number }[]
+  /** Their sessions newer than this computer's, newest first. */
+  sessions: RemoteSessionInfo[]
+}
+
+/** What a sync changed on this computer, so the renderer knows what to reload. */
+export interface SyncApplied {
+  library: boolean
+  history: boolean
+  settings: boolean
+}
+
 export interface ElectronAPI {
   app: {
     getInfo(): Promise<AppInfo>
@@ -354,6 +391,17 @@ export interface ElectronAPI {
   lyrics: {
     /** `null` when no lyrics are known for the track. */
     get(track: UnifiedTrack): Promise<Lyrics | null>
+  }
+  sync: {
+    getStatus(): Promise<SyncStatus>
+    /** Asks for a folder (OneDrive, Dropbox, iCloud Drive…) and starts syncing through it. */
+    chooseFolder(): Promise<SyncStatus>
+    stop(): Promise<SyncStatus>
+    syncNow(): Promise<SyncStatus>
+    /** The full session of another computer, for "Continue here". */
+    getSession(deviceId: string): Promise<PlaybackSession | null>
+    onStatusChange(listener: (status: SyncStatus) => void): Unsubscribe
+    onApplied(listener: (applied: SyncApplied) => void): Unsubscribe
   }
   remote: {
     getStatus(): Promise<RemoteStatus>

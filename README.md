@@ -30,6 +30,9 @@
 - **Phone remote** — turn it on in Settings, scan the QR code, and your phone's browser becomes a remote: cover,
   play/pause/skip/seek, volume, shuffle/repeat, the queue, and search with *Play now / Play next / Add to queue /
   Start radio*. Nothing to install; add it to the home screen for one-tap access. See [Phone remote](#phone-remote).
+- **Sync between computers** — choose a folder you already sync (OneDrive, Dropbox, iCloud Drive, Google Drive) on
+  each computer: hybrid playlists, chosen song versions, playback settings and listening history follow you, and
+  **Continue here** picks up a song where another computer left off. No server, no account; secrets never sync.
 - **Mini player** — shrink the window into a small always-on-top player (`Ctrl/Cmd + Shift + M` or the
   picture-in-picture button); YouTube's player stands in for the cover. It remembers where you put it.
 - **Autoplay & radio** — when the queue runs out, SpotiTube keeps going with similar tracks (shown as *Autoplay* at the
@@ -294,7 +297,7 @@ Everything is stored locally in the app's user-data directory:
 | Windows | `%APPDATA%\SpotiTube\` |
 | macOS | `~/Library/Application Support/SpotiTube/` |
 
-`spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
+`sync.json` remembers the sync folder and this computer's sync id. `spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
 the last 500 plays, `session.json` the saved queue and `window-state.json` the window size and position. `dsp-profiles.json` holds per-track audio settings and custom EQ presets. Deleting the folder resets the app.
 
 ## Troubleshooting

@@ -151,3 +151,10 @@ export function savePosition(position: unknown, currentTime: unknown): void {
   if (savedOrderLength === null || !isIndex(position, savedOrderLength)) return
   positionStore.set('position', { position, currentTime: cleanTime(currentTime), savedAt: Date.now() })
 }
+
+/** Replaces the play history (used when merging other computers' plays in). */
+export function replacePlays(plays: PlayRecord[]): void {
+  historyStore.set('plays', plays.slice(0, MAX_PLAYS))
+}
+
+export { isTrack as isHistoryTrack, MAX_PLAYS }
