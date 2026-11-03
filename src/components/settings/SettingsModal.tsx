@@ -355,6 +355,12 @@ function PlaybackSection() {
         onChange={(v) => void setAutoplayEnabled(v)}
       />
       <SettingToggle
+        label="Smooth fades"
+        description="Fade the music briefly when you skip, pause or resume instead of cutting it off."
+        checked={settings.smoothFades}
+        onChange={(v) => void update({ smoothFades: v })}
+      />
+      <SettingToggle
         label="Resume where you left off"
         description="On launch, bring back the queue and the track you were listening to, paused at the same spot."
         checked={settings.restoreSession}

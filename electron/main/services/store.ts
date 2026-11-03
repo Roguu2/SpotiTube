@@ -41,7 +41,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   syntheticFallback: true,
   autoUpdate: true,
   restoreSession: true,
-  autoplay: true
+  autoplay: true,
+  smoothFades: true
 }
 
 const store = new Store<PersistedState>({
@@ -71,6 +72,7 @@ export function updateSettings(patch: AppSettingsPatch): AppSettings {
   if (patch.autoUpdate !== undefined) next.autoUpdate = patch.autoUpdate
   if (patch.restoreSession !== undefined) next.restoreSession = patch.restoreSession
   if (patch.autoplay !== undefined) next.autoplay = patch.autoplay
+  if (patch.smoothFades !== undefined) next.smoothFades = patch.smoothFades
   store.set('settings', next)
   return getSettings()
 }

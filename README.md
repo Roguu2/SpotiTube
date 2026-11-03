@@ -34,6 +34,7 @@
   **Start radio** on any track builds an endless mix around it.
 - **Find & sort in playlists** — filter a playlist by title, artist or album (`Ctrl/Cmd + F`) and sort it by title,
   artist, album or length; the sort is remembered per playlist.
+- **Smooth fades** — skipping, pausing and resuming fade the music briefly instead of cutting it off (Settings).
 - **Sleep timer** — the moon button in the player bar stops playback after 15–90 minutes or at the end of the track.
 - **Recently played** — every track you listen to for 30 s or more (or half of a shorter one), grouped by day, with
   **Jump back in** cards for the playlists you played from. Clear it any time in Settings.

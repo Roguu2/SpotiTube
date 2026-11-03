@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import type { DesktopPlatform } from '@core/ipc'
+import { getEmbedPlayer } from './audio/YouTubeEmbedPlayer'
 import { AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/layout/Sidebar'
@@ -28,11 +29,14 @@ export function App() {
 
   const appInfo = useSettingsStore((s) => s.appInfo)
   const miniMode = useSettingsStore((s) => s.miniMode)
+  const smoothFades = useSettingsStore((s) => s.settings?.smoothFades ?? true)
   const view = useLibraryStore((s) => s.view)
   const mainRef = useRef<HTMLElement>(null)
 
   // The main process owns the window, so its word on the mode is final.
   useEffect(() => window.electronAPI.window.onMiniChange((mini) => useSettingsStore.setState({ miniMode: mini })), [])
+
+  useEffect(() => getEmbedPlayer().setFadesEnabled(smoothFades), [smoothFades])
 
   // Every navigation starts at the top of the new view.
   useEffect(() => {

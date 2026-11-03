@@ -74,6 +74,15 @@ const IDLE: TransportState = {
 /** Quietest level the embed plays at: YouTube treats every volume from 1 to 5 as 5. */
 const MIN_EMBED_VOLUME = 5
 
+/** Fade lengths. A skip fades the old track out quickly and the new one in once it actually plays. */
+const SKIP_FADE_OUT_MS = 220
+const SKIP_FADE_IN_MS = 450
+const PAUSE_FADE_MS = 160
+const RESUME_FADE_MS = 300
+const FADE_STEP_MS = 30
+/** Fades run in decibels down to this, which sounds even; YouTube's floor of 5 % sits just above it. */
+const FADE_FLOOR_DB = -30
+
 /**
  * Maps the 0–1 slider to YouTube's whole-number 5–100 volume (linear gain) on an
  * exponential curve, so every slider step changes loudness by the same number of
@@ -117,6 +126,14 @@ export class YouTubeEmbedPlayer {
   private rate = 1
   private tickTimer: number | null = null
   private lastEmit = 0
+  /** 1 = full volume, 0 = faded out. Multiplies the user's volume. */
+  private fade = 1
+  private fadesEnabled = true
+  private fadeTimer: number | null = null
+  private fadeDone: ((completed: boolean) => void) | null = null
+  /** Fade in once YouTube reports that the (new or resumed) video is actually playing. */
+  private fadeInOnPlay: number | null = null
+  private loadToken = 0
 
   constructor() {
     window.addEventListener('message', this.onMessage)
@@ -154,6 +171,13 @@ export class YouTubeEmbedPlayer {
   /** Loads and (by default) starts a video. Rejects with {@link EmbedPlaybackError} if YouTube refuses it. */
   async load(videoId: string, { autoplay = true, startAt = 0 } = {}): Promise<void> {
     if (!this.iframe) throw new Error('YouTube player is not mounted')
+    const token = ++this.loadToken
+    // Skipping mid-song: duck the old track first instead of cutting it off.
+    if (this.fadesEnabled && this.transport.isPlaying && this.ready) {
+      const faded = await this.fadeTo(0, SKIP_FADE_OUT_MS)
+      if (token !== this.loadToken) throw new Error('Superseded by another track')
+      if (faded) this.fadeInOnPlay = SKIP_FADE_IN_MS
+    }
     this.cancelPending(new Error('Superseded by another track'))
     this.videoId = videoId
     this.info = { ...this.info, currentTime: startAt, duration: 0, playerState: PlayerState.Unstarted, videoLoadedFraction: 0 }
@@ -208,11 +232,30 @@ export class YouTubeEmbedPlayer {
   play(): void {
     if (!this.videoId) return
     if (this.transport.ended) this.seek(this.loopStartOr(0))
+    if (this.fade < 1) {
+      // Resumed mid-fade (or after a faded pause): come back up smoothly.
+      if (this.info.playerState === PlayerState.Playing) void this.fadeTo(1, RESUME_FADE_MS)
+      else this.fadeInOnPlay = RESUME_FADE_MS
+    }
     this.command('playVideo')
   }
 
   pause(): void {
-    this.command('pauseVideo')
+    if (!this.fadesEnabled || !this.transport.isPlaying) {
+      this.command('pauseVideo')
+      return
+    }
+    this.fadeInOnPlay = null
+    void this.fadeTo(0, PAUSE_FADE_MS).then((completed) => {
+      // A play() during the fade cancels it, and with it the pause.
+      if (completed) this.command('pauseVideo')
+    })
+  }
+
+  /** Short volume ramps on skip, pause and resume. */
+  setFadesEnabled(enabled: boolean): void {
+    this.fadesEnabled = enabled
+    if (!enabled) this.resetFade()
   }
 
   toggle(): void {
@@ -230,6 +273,7 @@ export class YouTubeEmbedPlayer {
   }
 
   stop(): void {
+    this.resetFade()
     this.cancelPending(new Error('Playback stopped'))
     if (this.videoId) this.command('stopVideo')
     this.videoId = null
@@ -302,10 +346,60 @@ export class YouTubeEmbedPlayer {
       // so silence has to be an explicit mute.
       this.command('mute')
     } else {
-      this.command('setVolume', [embedVolume(this.volume)])
+      this.sendLevel()
       this.command('unMute')
     }
     this.command('setPlaybackRate', [this.rate])
+  }
+
+  /** The user's volume scaled by the current fade, as one YouTube volume command. */
+  private sendLevel(): void {
+    if (this.muted || this.volume <= 0) return
+    const gain = this.fade >= 1 ? 1 : 10 ** (((1 - Math.max(0, this.fade)) * FADE_FLOOR_DB) / 20)
+    this.command('setVolume', [Math.max(MIN_EMBED_VOLUME, Math.round(embedVolume(this.volume) * gain))])
+  }
+
+  /** Ramps the fade to `target` (smoothstep). Resolves false if another fade took over first. */
+  private fadeTo(target: number, ms: number): Promise<boolean> {
+    this.cancelFade()
+    const from = this.fade
+    if (from === target) return Promise.resolve(true)
+    const started = performance.now()
+    return new Promise<boolean>((resolve) => {
+      this.fadeDone = resolve
+      this.fadeTimer = window.setInterval(() => {
+        const t = Math.min(1, (performance.now() - started) / ms)
+        this.fade = from + (target - from) * t * t * (3 - 2 * t)
+        this.sendLevel()
+        if (t < 1) return
+        this.fade = target
+        this.clearFadeTimer()
+        this.fadeDone = null
+        resolve(true)
+      }, FADE_STEP_MS)
+    })
+  }
+
+  private clearFadeTimer(): void {
+    if (this.fadeTimer !== null) window.clearInterval(this.fadeTimer)
+    this.fadeTimer = null
+  }
+
+  private cancelFade(): void {
+    this.clearFadeTimer()
+    const done = this.fadeDone
+    this.fadeDone = null
+    done?.(false)
+  }
+
+  /** Back to full volume immediately (fades turned off, or playback stopped). */
+  private resetFade(): void {
+    this.cancelFade()
+    this.fadeInOnPlay = null
+    if (this.fade !== 1) {
+      this.fade = 1
+      this.sendLevel()
+    }
   }
 
   private readonly onMessage = (event: MessageEvent): void => {
@@ -358,6 +452,12 @@ export class YouTubeEmbedPlayer {
 
     if (state === PlayerState.Playing) this.startTicker()
     else this.stopTicker()
+
+    if (state === PlayerState.Playing && this.fadeInOnPlay !== null) {
+      const ms = this.fadeInOnPlay
+      this.fadeInOnPlay = null
+      void this.fadeTo(1, ms)
+    }
 
     if (state === PlayerState.Ended && this.loop.enabled && this.loop.a !== null) {
       this.seek(this.loop.a)

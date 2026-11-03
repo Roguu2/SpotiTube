@@ -122,6 +122,8 @@ export interface AppSettings {
   restoreSession: boolean
   /** When the queue runs out, keep playing tracks similar to the last one. */
   autoplay: boolean
+  /** Short volume fades when skipping, pausing and resuming. */
+  smoothFades: boolean
 }
 
 /** Where a play started from, as shown in the queue and in Recently played. */
