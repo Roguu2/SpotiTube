@@ -2,6 +2,7 @@ import {
   ListMusic,
   LoaderCircle,
   MicVocal,
+  PictureInPicture2,
   Pause,
   Pin,
   Play,
@@ -99,7 +100,7 @@ function NowPlaying() {
   )
 }
 
-function Transport() {
+export function Transport() {
   const current = usePlayerStore((s) => s.current)
   const status = usePlayerStore((s) => s.status)
   const shuffle = usePlayerStore((s) => s.shuffle)
@@ -158,19 +159,13 @@ function Transport() {
 }
 
 function RightControls() {
-  const volume = useAudioEngineStore((s) => s.volume)
-  const muted = useAudioEngineStore((s) => s.muted)
-  const hydrated = useAudioEngineStore((s) => s.hydrated)
-  const setVolume = useAudioEngineStore((s) => s.setVolume)
-  const toggleMute = useAudioEngineStore((s) => s.toggleMute)
   const queueOpen = useSettingsStore((s) => s.queueOpen)
   const toggleQueue = useSettingsStore((s) => s.toggleQueue)
   const upcoming = usePlayerStore((s) => (s.current ? s.order.length - s.position - 1 : 0))
   const hasTrack = usePlayerStore((s) => s.current !== null)
   const nowPlayingOpen = useSettingsStore((s) => s.nowPlayingOpen)
   const toggleNowPlaying = useSettingsStore((s) => s.toggleNowPlaying)
-
-  const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
+  const setMiniMode = useSettingsStore((s) => s.setMiniMode)
 
   return (
     <div className="flex items-center justify-end gap-2">
@@ -195,10 +190,31 @@ function RightControls() {
         )}
       </div>
 
+      <IconButton label="Mini player (Ctrl+Shift+M)" onClick={() => void setMiniMode(true)}>
+        <PictureInPicture2 size={16} />
+      </IconButton>
+
+      <VolumeControl />
+    </div>
+  )
+}
+
+/** Mute button and volume slider; the slider stretches to `sliderClassName`. */
+export function VolumeControl({ sliderClassName = 'w-24' }: { sliderClassName?: string }) {
+  const volume = useAudioEngineStore((s) => s.volume)
+  const muted = useAudioEngineStore((s) => s.muted)
+  const hydrated = useAudioEngineStore((s) => s.hydrated)
+  const setVolume = useAudioEngineStore((s) => s.setVolume)
+  const toggleMute = useAudioEngineStore((s) => s.toggleMute)
+
+  const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
+
+  return (
+    <div className="flex items-center gap-2">
       <IconButton label={muted ? 'Unmute' : 'Mute'} onClick={toggleMute} disabled={!hydrated}>
         <VolumeIcon size={17} />
       </IconButton>
-      <div className="w-24">
+      <div className={sliderClassName}>
         <Slider
           label="Volume"
           min={0}

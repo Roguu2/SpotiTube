@@ -34,7 +34,9 @@ const electronAPI: ElectronAPI = {
     toggleMaximize: () => ipcRenderer.send(IpcChannels.windowToggleMaximize),
     close: () => ipcRenderer.send(IpcChannels.windowClose),
     isMaximized: () => ipcRenderer.invoke(IpcChannels.windowIsMaximized),
-    onMaximizedChange: (listener) => subscribe<[boolean]>(IpcChannels.windowMaximizedChanged, listener)
+    onMaximizedChange: (listener) => subscribe<[boolean]>(IpcChannels.windowMaximizedChanged, listener),
+    setMini: (enabled) => ipcRenderer.invoke(IpcChannels.windowSetMini, enabled),
+    onMiniChange: (listener) => subscribe<[boolean]>(IpcChannels.windowMiniChanged, listener)
   },
   library: {
     getPlaylists: () => invoke(IpcChannels.libraryGetPlaylists),

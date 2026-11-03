@@ -25,6 +25,8 @@ interface SettingsState {
   settingsOpen: boolean
   /** Full-screen Now playing view with lyrics. */
   nowPlayingOpen: boolean
+  /** The window is the small always-on-top player. */
+  miniMode: boolean
 
   load(): Promise<void>
   update(patch: AppSettingsPatch): Promise<void>
@@ -36,6 +38,7 @@ interface SettingsState {
   toggleQueue(open?: boolean): void
   setSettingsOpen(open: boolean): void
   toggleNowPlaying(open?: boolean): void
+  setMiniMode(enabled: boolean): Promise<void>
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -46,6 +49,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   queueOpen: readQueueOpen(),
   settingsOpen: false,
   nowPlayingOpen: false,
+  miniMode: false,
 
   async load() {
     const [appInfo, settings, auth] = await Promise.all([
@@ -106,6 +110,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   async disconnectYouTubeMusic() {
     set({ auth: await window.electronAPI.auth.disconnectYouTubeMusic() })
     toast.info('YouTube Music disconnected')
+  },
+
+  async setMiniMode(enabled) {
+    // Switch the layout before the window shrinks, so the full layout is never squeezed into it.
+    if (enabled) set({ miniMode: true, nowPlayingOpen: false })
+    set({ miniMode: await window.electronAPI.window.setMini(enabled) })
   },
 
   toggleNowPlaying(open) {

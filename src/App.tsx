@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
+import type { DesktopPlatform } from '@core/ipc'
 import { AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar } from './components/layout/Sidebar'
@@ -9,6 +10,7 @@ import { SearchView } from './components/library/SearchView'
 import { HistoryView } from './components/library/HistoryView'
 import { PlayerBar } from './components/player/PlayerBar'
 import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
+import { MiniPlayer } from './components/player/MiniPlayer'
 import { QueuePanel } from './components/queue/QueuePanel'
 import { SettingsModal } from './components/settings/SettingsModal'
 import { NowPlayingView } from './components/nowplaying/NowPlayingView'
@@ -25,10 +27,12 @@ export function App() {
   usePlaybackPersistence()
 
   const appInfo = useSettingsStore((s) => s.appInfo)
-  const queueOpen = useSettingsStore((s) => s.queueOpen)
-  const nowPlayingOpen = useSettingsStore((s) => s.nowPlayingOpen)
+  const miniMode = useSettingsStore((s) => s.miniMode)
   const view = useLibraryStore((s) => s.view)
   const mainRef = useRef<HTMLElement>(null)
+
+  // The main process owns the window, so its word on the mode is final.
+  useEffect(() => window.electronAPI.window.onMiniChange((mini) => useSettingsStore.setState({ miniMode: mini })), [])
 
   // Every navigation starts at the top of the new view.
   useEffect(() => {
@@ -39,7 +43,23 @@ export function App() {
 
   return (
     <div className="flex h-full flex-col bg-base">
-      <TitleBar platform={appInfo.platform} />
+      {/* One tree for both layouts: YouTube's player below must never remount (its iframe would reload). */}
+      {miniMode ? <MiniPlayer /> : <FullLayout platform={appInfo.platform} mainRef={mainRef} />}
+      <EmbedMiniPlayer />
+      <SettingsModal />
+      <Toasts />
+    </div>
+  )
+}
+
+function FullLayout({ platform, mainRef }: { platform: DesktopPlatform; mainRef: RefObject<HTMLElement | null> }) {
+  const queueOpen = useSettingsStore((s) => s.queueOpen)
+  const nowPlayingOpen = useSettingsStore((s) => s.nowPlayingOpen)
+  const view = useLibraryStore((s) => s.view)
+
+  return (
+    <>
+      <TitleBar platform={platform} />
       <div className="relative flex min-h-0 flex-1">
         <Sidebar />
         <main
@@ -57,9 +77,6 @@ export function App() {
         <AnimatePresence>{nowPlayingOpen && <NowPlayingView key="now-playing" />}</AnimatePresence>
       </div>
       <PlayerBar />
-      <EmbedMiniPlayer />
-      <SettingsModal />
-      <Toasts />
-    </div>
+    </>
   )
 }

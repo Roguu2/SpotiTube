@@ -74,8 +74,9 @@ export function EmbedMiniPlayer() {
 
   const isStaged = staged && slotRect !== null
   const isDocked = !staged && docked && slotRect !== null
+  // Staged, the 1 px frame sits inside the slot so the player covers it exactly.
   const video = isStaged
-    ? { width: slotRect.width, height: slotRect.height }
+    ? { width: slotRect.width - 2, height: slotRect.height - 2 }
     : isDocked
       ? { width: slotRect.width, height: DOCKED_VIDEO_HEIGHT }
       : VIDEO[size]

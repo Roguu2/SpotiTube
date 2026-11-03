@@ -27,6 +27,8 @@
 - **Now playing & synced lyrics** — click the cover in the player bar (or `Ctrl/Cmd + L`) for a full-screen view
   over a backdrop made from the album art, with time-synced lyrics from [LRCLIB](https://lrclib.net) that follow the
   song. Click a line to jump there; nudge the sync if a version's timing differs.
+- **Mini player** — shrink the window into a small always-on-top player (`Ctrl/Cmd + Shift + M` or the
+  picture-in-picture button); YouTube's player stands in for the cover. It remembers where you put it.
 - **Autoplay & radio** — when the queue runs out, SpotiTube keeps going with similar tracks (shown as *Autoplay* at the
   end of the queue, so anything you queue still plays first; switch it off in the queue or in Settings).
   **Start radio** on any track builds an endless mix around it.
@@ -139,6 +141,7 @@ When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.
 | `Ctrl/Cmd + F` | Find in the open playlist, otherwise Search |
 | `Ctrl/Cmd + E` | Toggle the queue |
 | `Ctrl/Cmd + L` | Now playing & lyrics (`Esc` closes) |
+| `Ctrl/Cmd + Shift + M` | Mini player on / off |
 | `Ctrl/Cmd + ,` | Settings |
 
 

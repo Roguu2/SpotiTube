@@ -2,7 +2,7 @@ import { BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { IpcChannels } from '@core/ipc'
-import { initialWindowBounds, trackWindowState, wasMaximized } from './services/windowState'
+import { initialWindowBounds, NORMAL_MIN_SIZE, trackWindowState, wasMaximized } from './services/windowState'
 
 const BACKGROUND = '#09090b'
 
@@ -12,8 +12,8 @@ export function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     // Last session's size and position (falls back to centred defaults).
     ...initialWindowBounds(),
-    minWidth: 960,
-    minHeight: 600,
+    minWidth: NORMAL_MIN_SIZE.width,
+    minHeight: NORMAL_MIN_SIZE.height,
     show: false,
     backgroundColor: BACKGROUND,
     title: 'SpotiTube',

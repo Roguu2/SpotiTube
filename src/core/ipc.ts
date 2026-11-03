@@ -14,6 +14,8 @@ export const IpcChannels = {
   windowClose: 'window:close',
   windowIsMaximized: 'window:is-maximized',
   windowMaximizedChanged: 'window:maximized-changed',
+  windowSetMini: 'window:set-mini',
+  windowMiniChanged: 'window:mini-changed',
 
   libraryGetPlaylists: 'library:get-playlists',
   libraryGetPlaylistTracks: 'library:get-playlist-tracks',
@@ -211,6 +213,9 @@ export interface ElectronAPI {
     close(): void
     isMaximized(): Promise<boolean>
     onMaximizedChange(listener: (maximized: boolean) => void): Unsubscribe
+    /** Shrinks the window into the always-on-top mini player, or restores it. Resolves to the new mode. */
+    setMini(enabled: boolean): Promise<boolean>
+    onMiniChange(listener: (mini: boolean) => void): Unsubscribe
   }
   library: {
     getPlaylists(): Promise<LibrarySnapshot>
