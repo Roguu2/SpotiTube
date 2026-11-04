@@ -85,6 +85,9 @@ export const IpcChannels = {
   presenceUpdate: 'presence:update',
   mediaNotifyTrack: 'media:notify-track',
 
+  discoverGetCategories: 'discover:get-categories',
+  discoverGetPlaylists: 'discover:get-playlists',
+
   likesGetIds: 'likes:get-ids',
   likesSet: 'likes:set'
 } as const
@@ -95,6 +98,9 @@ export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } }
 
 export type DesktopPlatform = 'win32' | 'darwin' | 'linux'
+
+/** The mini player: square video with the essentials, or the wider one with every control. */
+export type MiniSize = 'compact' | 'large'
 
 export interface AppInfo {
   name: string
@@ -209,6 +215,14 @@ export interface UpdateState {
 export type AppSettingsPatch = Partial<Omit<AppSettings, 'spotifyRedirectUri'>>
 
 export type MediaCommand = 'play-pause' | 'next' | 'previous' | 'stop'
+
+/** A mood or genre on YouTube Music's "Moods & genres" page. */
+export interface DiscoverCategory {
+  /** Opaque id for fetching its playlists. */
+  id: string
+  title: string
+  group: 'mood' | 'genre'
+}
 
 export interface LikeResult {
   liked: boolean
@@ -363,7 +377,7 @@ export interface ElectronAPI {
     isMaximized(): Promise<boolean>
     onMaximizedChange(listener: (maximized: boolean) => void): Unsubscribe
     /** Shrinks the window into the always-on-top mini player, or restores it. Resolves to the new mode. */
-    setMini(enabled: boolean): Promise<boolean>
+    setMini(enabled: boolean, size?: MiniSize): Promise<boolean>
     onMiniChange(listener: (mini: boolean) => void): Unsubscribe
   }
   library: {
@@ -446,6 +460,11 @@ export interface ElectronAPI {
     getSession(deviceId: string): Promise<PlaybackSession | null>
     onStatusChange(listener: (status: SyncStatus) => void): Unsubscribe
     onApplied(listener: (applied: SyncApplied) => void): Unsubscribe
+  }
+  discover: {
+    getCategories(): Promise<DiscoverCategory[]>
+    /** Playlists for a mood or genre; their tracks load like any playlist's. */
+    getPlaylists(categoryId: string): Promise<UnifiedPlaylist[]>
   }
   likes: {
     /** Ids of the tracks in Liked songs. */

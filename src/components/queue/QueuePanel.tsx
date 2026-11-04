@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { ChevronDown, ChevronUp, GripVertical, Infinity as InfinityIcon, ListMusic, LoaderCircle, Play, X } from 'lucide-react'
 import { artistLine, type UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
-import { SourceBadge } from '@/components/ui/SourceBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { EqualizerBars } from '@/components/ui/EqualizerBars'
 import { VersionPicker } from './VersionPicker'
@@ -82,7 +81,6 @@ function NowPlayingSection() {
               <span className="truncate text-[13.5px] font-semibold text-zinc-100">{current.title}</span>
             </div>
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-              <SourceBadge source={current.source} variant="tag" />
               <span className="truncate text-[12px] text-zinc-400">{artistLine(current)}</span>
             </div>
           </div>
@@ -304,7 +302,6 @@ const QueueRow = memo(function QueueRow({
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px] font-medium text-zinc-100">{track.title}</div>
         <div className="flex min-w-0 items-center gap-1.5">
-          <SourceBadge source={track.source} variant="tag" />
           {queued && (
             <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-px text-[9.5px] font-semibold text-zinc-300">Queued</span>
           )}

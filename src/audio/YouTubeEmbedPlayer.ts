@@ -3,7 +3,7 @@ import type { TransportState } from './AudioEngine'
 
 const ORIGIN = 'https://www.youtube-nocookie.com'
 const READY_TIMEOUT_MS = 15_000
-const LOAD_TIMEOUT_MS = 20_000
+const LOAD_TIMEOUT_MS = 15_000
 const HANDSHAKE_INTERVAL_MS = 250
 const TICK_MS = 50
 /** How often the UI-facing transport is refreshed between player messages. */
@@ -19,13 +19,20 @@ const PlayerState = {
   Cued: 5
 } as const
 
-/** Error codes for which another upload of the same song may still work. */
-const RECOVERABLE_CODES = new Set([100, 101, 150, 152, 153])
+/** Our own codes, next to YouTube's: the video never started, or YouTube marked it unplayable here. */
+export const NOT_STARTED = -1
+export const NOT_PLAYABLE = -2
+/** YouTube's "invalid parameter": a bug on our side, which another upload wouldn't fix. */
+const INVALID_PARAMETER = 2
 
 export class EmbedPlaybackError extends Error {
   constructor(readonly code: number) {
     super(
-      code === 101 || code === 150
+      code === NOT_PLAYABLE
+        ? "YouTube won't play this version here (it may be for Premium members only)"
+        : code === NOT_STARTED
+          ? "This version didn't start"
+          : code === 101 || code === 150
         ? 'The uploader does not allow this video to be played in other apps'
         : code === 100
           ? 'This video is no longer available'
@@ -36,9 +43,13 @@ export class EmbedPlaybackError extends Error {
     this.name = 'EmbedPlaybackError'
   }
 
-  /** True when trying a different upload of the same song makes sense. */
+  /**
+   * True when trying a different upload of the same song makes sense — for
+   * everything except a malformed request: Premium-only, region-locked, removed
+   * or embedding-disabled uploads all tend to have a sibling that plays.
+   */
   get tryAnotherUpload(): boolean {
-    return RECOVERABLE_CODES.has(this.code)
+    return this.code !== INVALID_PARAMETER
   }
 }
 
@@ -48,6 +59,11 @@ interface PlayerInfo {
   playerState?: number
   playbackRate?: number
   videoLoadedFraction?: number
+}
+
+/** Player messages also describe the loaded video, including whether it can play here at all. */
+interface PlayerMessageInfo extends PlayerInfo {
+  videoData?: { video_id?: string; isPlayable?: boolean; errorCode?: unknown }
 }
 
 interface PendingLoad {
@@ -188,7 +204,7 @@ export class YouTubeEmbedPlayer {
       const timer = window.setTimeout(() => {
         if (this.pending?.videoId !== videoId) return
         this.pending = null
-        reject(new Error('The YouTube player did not start in time'))
+        reject(new EmbedPlaybackError(NOT_STARTED))
       }, LOAD_TIMEOUT_MS)
       this.pending = { videoId, autoplay, resolve, reject, timer }
     })
@@ -415,7 +431,7 @@ export class YouTubeEmbedPlayer {
     switch (data.event) {
       case 'initialDelivery':
       case 'infoDelivery':
-        this.applyInfo(data.info as PlayerInfo)
+        this.applyInfo(data.info as PlayerMessageInfo)
         break
       case 'onStateChange':
         this.applyInfo({ playerState: data.info as number })
@@ -426,8 +442,18 @@ export class YouTubeEmbedPlayer {
     }
   }
 
-  private applyInfo(info: PlayerInfo | undefined): void {
+  private applyInfo(info: PlayerMessageInfo | undefined): void {
     if (!info) return
+    // YouTube says up front when a video can't play here (Premium-only, region, age): give up on it
+    // at once instead of waiting for the load timeout.
+    const video = info.videoData
+    const pending = this.pending
+    if (pending && video?.video_id === pending.videoId && (video.isPlayable === false || (video.errorCode ?? null) !== null)) {
+      window.clearTimeout(pending.timer)
+      this.pending = null
+      pending.reject(new EmbedPlaybackError(NOT_PLAYABLE))
+      return
+    }
     if (typeof info.currentTime === 'number') {
       this.info.currentTime = info.currentTime
       this.infoAt = performance.now()

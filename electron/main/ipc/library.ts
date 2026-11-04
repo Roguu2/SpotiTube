@@ -36,6 +36,10 @@ export function registerLibraryIpc({ registry, spotifyAuth, spotify, hybrid, you
   )
   handle(IpcChannels.librarySearch, (query: unknown) => registry.search(requireString(query, 'query')))
   handle(IpcChannels.libraryGetSimilar, (track: unknown) => registry.getSimilar(requireTrack<UnifiedTrack>(track)))
+  handle(IpcChannels.discoverGetCategories, () => registry.getDiscoverCategories())
+  handle(IpcChannels.discoverGetPlaylists, (categoryId: unknown) =>
+    registry.getDiscoverPlaylists(requireString(categoryId, 'categoryId'))
+  )
 
   handle(IpcChannels.hybridCreate, (name: unknown, description?: unknown) => {
     const playlist = hybrid.create(

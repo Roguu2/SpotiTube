@@ -61,9 +61,6 @@ main { max-width: 520px; margin: 0 auto; padding: max(14px, env(safe-area-inset-
 .meta { margin-top: 22px; min-width: 0; }
 .title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.badge { flex: none; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 999px; letter-spacing: .04em; }
-.badge.spotify { color: var(--spotify); background: rgba(29,185,84,.15); }
-.badge.ytmusic { color: var(--yt); background: rgba(255,59,59,.15); }
 .artist { color: var(--muted); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .context { color: var(--faint); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -138,7 +135,7 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0; bord
   <section aria-label="Now playing">
     <div class="art-wrap"><img id="art" alt="" hidden><div id="art-empty" class="art-empty">♪</div></div>
     <div class="meta">
-      <div class="title-row"><div class="title" id="title">Nothing playing</div><span id="badge" class="badge" hidden></span></div>
+      <div class="title-row"><div class="title" id="title">Nothing playing</div></div>
       <div class="artist" id="artist">Pick something on your computer or search below.</div>
       <div class="context" id="context"></div>
     </div>
@@ -306,7 +303,7 @@ export const REMOTE_APP_JS = String.raw`(() => {
     txt.appendChild(el('div', 't', track.title))
     const sub = el('div', 's')
     if (tag) sub.appendChild(el('span', 'tag ' + tag.cls, tag.text))
-    sub.appendChild(el('span', '', (track.source === 'spotify' ? 'Spotify · ' : track.source === 'ytmusic' ? 'YT Music · ' : '') + track.artists))
+    sub.appendChild(el('span', '', track.artists))
     txt.appendChild(sub)
     button.appendChild(txt)
     button.addEventListener('click', onTap)
@@ -322,9 +319,6 @@ export const REMOTE_APP_JS = String.raw`(() => {
     $('title').textContent = track ? track.title : 'Nothing playing'
     $('artist').textContent = track ? track.artists : 'Pick something on your computer or search below.'
     $('context').textContent = s && s.context ? 'Playing from ' + s.context : ''
-    const badge = $('badge')
-    badge.hidden = !track || (track.source !== 'spotify' && track.source !== 'ytmusic')
-    if (track) { badge.className = 'badge ' + track.source; badge.textContent = track.source === 'spotify' ? 'SP' : 'YT' }
 
     const art = track ? track.artworkUrl : null
     if (art !== lastArt) {

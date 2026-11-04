@@ -1,6 +1,6 @@
 import Store from 'electron-store'
 import { screen, type BrowserWindow, type Rectangle } from 'electron'
-import { IpcChannels } from '@core/ipc'
+import { IpcChannels, type MiniSize } from '@core/ipc'
 
 export interface WindowState {
   bounds: Rectangle | null
@@ -10,8 +10,14 @@ export interface WindowState {
 }
 
 export const NORMAL_MIN_SIZE = { width: 960, height: 600 }
-/** Fits YouTube's player at 356×200 (it must stay at least 200 px tall) plus the controls. */
-const MINI_SIZE = { width: 380, height: 432 }
+/**
+ * Both fit YouTube's player at its minimum or more (at least 200×200 px):
+ * compact shows it square with the essentials, large at 354×200 with every control.
+ */
+const MINI_SIZES: Record<MiniSize, { width: number; height: number }> = {
+  compact: { width: 232, height: 344 },
+  large: { width: 380, height: 432 }
+}
 const MINI_MARGIN = 24
 const DEFAULT_SIZE = { width: 1360, height: 860 }
 const SAVE_DEBOUNCE_MS = 500
@@ -24,7 +30,7 @@ const store = new Store<WindowState>({
 })
 
 /** What to go back to when leaving mini mode; `null` while the window is normal. */
-let mini: { bounds: Rectangle; maximized: boolean } | null = null
+let mini: { bounds: Rectangle; maximized: boolean; size: MiniSize } | null = null
 
 function isOnScreen(bounds: Rectangle): boolean {
   return screen.getAllDisplays().some(({ workArea }) => {
@@ -85,13 +91,13 @@ export function isMiniMode(): boolean {
 }
 
 /** Last spot of the mini player if it is still on a screen, else the bottom-right of the window's display. */
-function miniPosition(window: BrowserWindow): { x: number; y: number } {
+function miniPosition(window: BrowserWindow, size: MiniSize): { x: number; y: number } {
   const saved = store.get('miniPosition')
-  if (saved && isOnScreen({ ...saved, ...MINI_SIZE })) return saved
+  if (saved && isOnScreen({ ...saved, ...MINI_SIZES[size] })) return saved
   const { workArea } = screen.getDisplayMatching(window.getBounds())
   return {
-    x: workArea.x + workArea.width - MINI_SIZE.width - MINI_MARGIN,
-    y: workArea.y + workArea.height - MINI_SIZE.height - MINI_MARGIN
+    x: workArea.x + workArea.width - MINI_SIZES[size].width - MINI_MARGIN,
+    y: workArea.y + workArea.height - MINI_SIZES[size].height - MINI_MARGIN
   }
 }
 
@@ -99,16 +105,29 @@ function miniPosition(window: BrowserWindow): { x: number; y: number } {
  * Shrinks the window into a small always-on-top player, or brings it back to
  * the size, place and maximized state it had before.
  */
-export function setMiniMode(window: BrowserWindow, enabled: boolean): boolean {
-  if (enabled === (mini !== null)) return enabled
+export function setMiniMode(window: BrowserWindow, enabled: boolean, size: MiniSize = 'compact'): boolean {
   const isMac = process.platform === 'darwin'
 
+  if (enabled && mini) {
+    // Already mini: switch size, keeping the bottom-right corner where it is (where it usually sits).
+    if (mini.size !== size) {
+      const now = window.getBounds()
+      const next = MINI_SIZES[size]
+      mini.size = size
+      window.setMinimumSize(Math.min(now.width, next.width), Math.min(now.height, next.height))
+      window.setBounds({ x: now.x + now.width - next.width, y: now.y + now.height - next.height, ...next })
+      window.setMinimumSize(next.width, next.height)
+    }
+    return true
+  }
+  if (enabled === (mini !== null)) return enabled
+
   if (enabled) {
-    mini = { bounds: window.getNormalBounds(), maximized: window.isMaximized() }
+    mini = { bounds: window.getNormalBounds(), maximized: window.isMaximized(), size }
     if (window.isFullScreen()) window.setFullScreen(false)
     if (window.isMaximized()) window.unmaximize()
-    window.setMinimumSize(MINI_SIZE.width, MINI_SIZE.height)
-    window.setBounds({ ...miniPosition(window), ...MINI_SIZE })
+    window.setMinimumSize(MINI_SIZES[size].width, MINI_SIZES[size].height)
+    window.setBounds({ ...miniPosition(window, size), ...MINI_SIZES[size] })
     window.setResizable(false)
     window.setMaximizable(false)
     window.setFullScreenable(false)

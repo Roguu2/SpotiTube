@@ -34,9 +34,9 @@ export function registerWindowIpc(): void {
 
   ipcMain.handle(IpcChannels.windowIsMaximized, (event) => senderWindow(event)?.isMaximized() ?? false)
 
-  ipcMain.handle(IpcChannels.windowSetMini, (event, enabled: unknown) => {
+  ipcMain.handle(IpcChannels.windowSetMini, (event, enabled: unknown, size: unknown) => {
     const win = senderWindow(event)
     if (!win || !isTrustedSender(event)) return isMiniMode()
-    return setMiniMode(win, enabled === true)
+    return setMiniMode(win, enabled === true, size === 'large' ? 'large' : 'compact')
   })
 }

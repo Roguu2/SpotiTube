@@ -7,7 +7,7 @@ import { cx, formatTime } from '@/lib/format'
  * Seek bar with buffered range, A-B loop region and hover preview. Dragging
  * only seeks on release so the stream is not hammered with range requests.
  */
-export function SeekBar({ disabled = false }: { disabled?: boolean }) {
+export function SeekBar({ disabled = false, showTimes = true }: { disabled?: boolean; showTimes?: boolean }) {
   const transport = useAudioEngineStore((s) => s.transport)
   const loop = useAudioEngineStore((s) => s.loop)
   const engineSeek = useAudioEngineStore((s) => s.seek)
@@ -58,7 +58,7 @@ export function SeekBar({ disabled = false }: { disabled?: boolean }) {
 
   return (
     <div className="flex w-full items-center gap-2.5 text-[11px] text-zinc-500 tabular-nums">
-      <span className="w-10 text-right">{formatTime(time)}</span>
+      {showTimes && <span className="w-10 text-right">{formatTime(time)}</span>}
       <div
         ref={trackRef}
         role="slider"
@@ -113,7 +113,7 @@ export function SeekBar({ disabled = false }: { disabled?: boolean }) {
           </div>
         )}
       </div>
-      <span className="w-10">{formatTime(duration)}</span>
+      {showTimes && <span className="w-10">{formatTime(duration)}</span>}
     </div>
   )
 }

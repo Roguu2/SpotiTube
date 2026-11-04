@@ -5,7 +5,12 @@ import { toast } from './useToastStore'
 
 export type LibraryFilter = 'all' | 'spotify' | 'ytmusic' | 'split'
 
-export type View = { kind: 'library' } | { kind: 'playlist'; playlistId: string } | { kind: 'search' } | { kind: 'history' }
+export type View =
+  | { kind: 'library' }
+  | { kind: 'playlist'; playlistId: string }
+  | { kind: 'search' }
+  | { kind: 'history' }
+  | { kind: 'discover' }
 
 export interface TrackListState {
   tracks: UnifiedTrack[]
@@ -64,6 +69,7 @@ function readLastView(): { view: View; filter: LibraryFilter } {
       view?.kind === 'library' ||
       view?.kind === 'search' ||
       view?.kind === 'history' ||
+      view?.kind === 'discover' ||
       (view?.kind === 'playlist' && typeof view.playlistId === 'string')
     return {
       view: valid ? (view as View) : fallback.view,
@@ -132,9 +138,23 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
       try {
         const snapshot = await window.electronAPI.library.getPlaylists()
         const ids = new Set(snapshot.playlists.map((p) => p.id))
-        // Drop cached tracks of playlists that disappeared (e.g. demo → real account).
-        const tracks = Object.fromEntries(Object.entries(get().tracks).filter(([id]) => ids.has(id)))
+        // Drop cached tracks of playlists that disappeared (e.g. demo → real account), and of
+        // playlists whose length changed behind our back (sync, likes, the phone remote).
+        const counts = new Map(snapshot.playlists.map((p) => [p.id, p.trackCount]))
         const view = get().view
+        const viewing = view.kind === 'playlist' ? view.playlistId : null
+        const stale: string[] = []
+        const tracks = Object.fromEntries(
+          Object.entries(get().tracks).filter(([id, entry]) => {
+            if (!ids.has(id)) return false
+            // Only SpotiTube's own playlists report an exact count (service playlists skip unplayable items).
+            const changed =
+              id.startsWith('hybrid:') && !entry.loading && !entry.error && entry.tracks.length !== counts.get(id)
+            if (changed) stale.push(id)
+            // The open playlist keeps showing its old tracks until the fresh ones arrive.
+            return !changed || id === viewing
+          })
+        )
         set({
           playlists: snapshot.playlists,
           providers: snapshot.providers,
@@ -143,6 +163,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
           loaded: true,
           view: view.kind === 'playlist' && !ids.has(view.playlistId) ? { kind: 'library' } : view
         })
+        if (viewing && stale.includes(viewing)) void get().loadTracks(viewing, true)
         for (const status of snapshot.providers) {
           if (status.error) toast.error(`${status.providerId === 'spotify' ? 'Spotify' : 'YouTube Music'}: ${status.error}`)
         }

@@ -2,7 +2,6 @@ import { memo, useState } from 'react'
 import { Clock3, Play, X } from 'lucide-react'
 import { artistLine, type UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
-import { SourceBadge } from '@/components/ui/SourceBadge'
 import { EqualizerBars } from '@/components/ui/EqualizerBars'
 import { AddToHybridMenu } from './AddToHybridMenu'
 import { TrackQueueMenu } from './TrackQueueMenu'
@@ -157,7 +156,6 @@ const TrackRow = memo(function TrackRow({
             )}
           </div>
           <div className="flex min-w-0 items-center gap-1.5">
-            <SourceBadge source={track.source} variant="tag" />
             <span className="truncate text-zinc-400">{artistLine(track)}</span>
           </div>
         </div>

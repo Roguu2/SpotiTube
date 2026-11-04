@@ -89,6 +89,36 @@ const AUTOPLAY_BATCH = 15
 /** Recently heard tracks are not suggested again. */
 const AUTOPLAY_RECENT_PLAYS = 50
 
+/** Uploads YouTube refused to play here (Premium-only, region, removed…), tried last from then on. */
+const REFUSED_KEY = 'spotitube.refusedUploads'
+const MAX_REFUSED = 500
+
+function readRefused(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(REFUSED_KEY) ?? '[]') as unknown
+    return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+const refusedUploads = new Set(readRefused())
+
+function rememberRefused(videoId: string): void {
+  refusedUploads.delete(videoId)
+  refusedUploads.add(videoId)
+  try {
+    localStorage.setItem(REFUSED_KEY, JSON.stringify([...refusedUploads].slice(-MAX_REFUSED)))
+  } catch {
+    // Only an optimisation: the refused upload would just be tried (and skipped) again.
+  }
+}
+
+/** Uploads known to be refused go last, keeping the rest in their order. */
+function refusedLast(candidates: StreamCandidate[]): StreamCandidate[] {
+  return [...candidates.filter((c) => !refusedUploads.has(c.videoId)), ...candidates.filter((c) => refusedUploads.has(c.videoId))]
+}
+
 let playToken = 0
 let consecutiveFailures = 0
 let recovering = false
@@ -170,9 +200,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   const playEmbedded = async (track: UnifiedTrack, source: PlaybackSource, token: number, startAt?: number): Promise<void> => {
     const engine = useAudioEngineStore.getState()
     const tried = new Set<string>()
-    let queue = [source.candidate, ...source.alternatives].filter((c): c is StreamCandidate => !!c)
+    const listed = [source.candidate, ...source.alternatives].filter((c): c is StreamCandidate => !!c)
+    // A version you pinned yourself is always tried first, even if it failed before.
+    let queue = source.isOverride ? listed : refusedLast(listed)
     let lastError: unknown = new Error('No YouTube upload available for this track')
     let fetchedMore = false
+    let refused = 0
 
     while (true) {
       for (const candidate of queue) {
@@ -189,18 +222,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
                 alternatives: queue.filter((c) => c.videoId !== candidate.videoId)
               }
             })
+            if (refused > 0) toast.info(`“${track.title}” wouldn't play in that version — playing another one`)
           }
           return
         } catch (error) {
           lastError = error
           if (!(error instanceof EmbedPlaybackError) || !error.tryAnotherUpload) throw error
+          rememberRefused(candidate.videoId)
+          refused++
         }
       }
       // Every known upload refused; look further once (strong matches only, never a manual pin).
       if (fetchedMore || source.isOverride || token !== playToken) throw lastError
       fetchedMore = true
       const more = await window.electronAPI.stream.getCandidates(track)
-      queue = more.filter((c) => c.score >= MIN_FALLBACK_SCORE && !tried.has(c.videoId))
+      queue = refusedLast(more.filter((c) => c.score >= MIN_FALLBACK_SCORE && !tried.has(c.videoId)))
       if (!queue.length) throw lastError
     }
   }

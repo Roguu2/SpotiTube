@@ -17,7 +17,6 @@ import {
 } from 'lucide-react'
 import { artistLine } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
-import { SourceBadge } from '@/components/ui/SourceBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Slider } from '@/components/ui/Slider'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
@@ -78,7 +77,6 @@ function NowPlaying() {
         </div>
         <div className="truncate text-[12.5px] text-zinc-400">{artistLine(current)}</div>
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
-          <SourceBadge source={current.source} variant="tag" />
           {status === 'error' ? (
             <span className="truncate text-[11px] text-red-400" title={error ?? undefined}>
               Playback failed

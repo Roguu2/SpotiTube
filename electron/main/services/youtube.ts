@@ -37,7 +37,9 @@ export class YouTubeClient {
     this.anonymous ??= Innertube.create({
       cache: this.cache,
       retrieve_player: true,
-      generate_session_locally: true
+      generate_session_locally: true,
+      // The computer's country, so charts, search and Discover lean local (e.g. Polish hip-hop in Poland).
+      location: app.getLocaleCountryCode() || undefined
     }).catch((error: unknown) => {
       this.anonymous = null
       throw error

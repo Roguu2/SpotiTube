@@ -39,7 +39,7 @@ const electronAPI: ElectronAPI = {
     close: () => ipcRenderer.send(IpcChannels.windowClose),
     isMaximized: () => ipcRenderer.invoke(IpcChannels.windowIsMaximized),
     onMaximizedChange: (listener) => subscribe<[boolean]>(IpcChannels.windowMaximizedChanged, listener),
-    setMini: (enabled) => ipcRenderer.invoke(IpcChannels.windowSetMini, enabled),
+    setMini: (enabled, size) => ipcRenderer.invoke(IpcChannels.windowSetMini, enabled, size),
     onMiniChange: (listener) => subscribe<[boolean]>(IpcChannels.windowMiniChanged, listener)
   },
   library: {
@@ -111,6 +111,10 @@ const electronAPI: ElectronAPI = {
     getSession: (deviceId) => invoke(IpcChannels.syncGetSession, deviceId),
     onStatusChange: (listener) => subscribe<[SyncStatus]>(IpcChannels.syncStatusChanged, listener),
     onApplied: (listener) => subscribe<[SyncApplied]>(IpcChannels.syncApplied, listener)
+  },
+  discover: {
+    getCategories: () => invoke(IpcChannels.discoverGetCategories),
+    getPlaylists: (categoryId) => invoke(IpcChannels.discoverGetPlaylists, categoryId)
   },
   likes: {
     getIds: () => invoke(IpcChannels.likesGetIds),

@@ -1,10 +1,16 @@
 import { YTNodes, type Helpers } from 'youtubei.js'
 import { makePlaylistId, type IMusicProvider, type UnifiedPlaylist, type UnifiedTrack } from '@core/types'
+import type { DiscoverCategory } from '@core/ipc'
 import { bestThumbnail, type YouTubeClient } from '../../services/youtube'
 import type { StreamResolver } from '../../services/streamResolver'
 import { collectListItems, listItemToTrack, panelToTracks } from './mapping'
 
 const LIKED_MUSIC_ID = 'LM'
+const MOODS_AND_GENRES = 'FEmusic_moods_and_genres'
+const MOODS_AND_GENRES_CATEGORY = 'FEmusic_moods_and_genres_category'
+/** The category list barely changes; a category's playlists rotate more often. */
+const CATEGORIES_TTL_MS = 12 * 60 * 60_000
+const CATEGORY_PLAYLISTS_TTL_MS = 60 * 60_000
 const MAX_TRACKS_PER_PLAYLIST = 5_000
 const MAX_LIBRARY_PAGES = 10
 
@@ -16,6 +22,9 @@ function parseCount(text: string | null | undefined): number {
 export class YouTubeMusicProvider implements IMusicProvider {
   readonly id = 'ytmusic' as const
   readonly displayName = 'YouTube Music'
+
+  private categories: { at: number; value: Promise<DiscoverCategory[]> } | null = null
+  private readonly categoryPlaylists = new Map<string, { at: number; value: Promise<UnifiedPlaylist[]> }>()
 
   constructor(
     private readonly youtube: YouTubeClient,
@@ -91,13 +100,24 @@ export class YouTubeMusicProvider implements IMusicProvider {
     // Public playlists work anonymously; private ones and Liked Music need the cookie.
     const yt = this.youtube.hasCookie() ? await this.youtube.getAuthenticated() : await this.youtube.getAnonymous()
     let playlist = await yt.music.getPlaylist(playlistId)
-    const tracks = collectListItems(playlist.items).map((item) => listItemToTrack(item))
-
-    while (playlist.has_continuation && tracks.length < MAX_TRACKS_PER_PLAYLIST) {
-      playlist = await playlist.getContinuation()
-      tracks.push(...collectListItems(playlist.items).map((item) => listItemToTrack(item)))
+    const tracks = new Map<string, UnifiedTrack>()
+    const add = (page: typeof playlist): number => {
+      const before = tracks.size
+      for (const item of collectListItems(page.items)) {
+        const track = listItemToTrack(item)
+        if (!tracks.has(track.id)) tracks.set(track.id, track)
+      }
+      return tracks.size - before
     }
-    return tracks
+    add(playlist)
+
+    // Some curated playlists keep offering a "continuation" that repeats the same songs;
+    // stop as soon as a page brings nothing new.
+    while (playlist.has_continuation && tracks.size < MAX_TRACKS_PER_PLAYLIST) {
+      playlist = await playlist.getContinuation()
+      if (add(playlist) === 0) break
+    }
+    return [...tracks.values()].slice(0, MAX_TRACKS_PER_PLAYLIST)
   }
 
   async searchTracks(query: string): Promise<UnifiedTrack[]> {
@@ -115,5 +135,67 @@ export class YouTubeMusicProvider implements IMusicProvider {
 
   resolveStreamUrl(track: UnifiedTrack): Promise<string> {
     return this.resolver.resolve(track.streamVideoId ?? track.sourceTrackId)
+  }
+
+  /** YouTube Music's "Moods & genres": the first grid holds moods and moments, the second genres. */
+  getDiscoverCategories(): Promise<DiscoverCategory[]> {
+    if (this.categories && Date.now() - this.categories.at < CATEGORIES_TTL_MS) return this.categories.value
+    const value = (async () => {
+      const yt = await this.youtube.getAnonymous()
+      const page = await yt.actions.execute('/browse', { browseId: MOODS_AND_GENRES, client: 'YTMUSIC', parse: true })
+      const grids = page.contents_memo?.getType(YTNodes.Grid) ?? []
+      return grids.slice(0, 2).flatMap((grid, index) =>
+        grid.items.filterType(YTNodes.MusicNavigationButton).flatMap((button): DiscoverCategory[] => {
+          const params = button.endpoint?.payload?.params as string | undefined
+          return params ? [{ id: params, title: button.button_text, group: index === 0 ? 'mood' : 'genre' }] : []
+        })
+      )
+    })()
+    value.catch(() => (this.categories = null))
+    this.categories = { at: Date.now(), value }
+    return value
+  }
+
+  /** Curated playlists for a mood or genre; community playlists only when there are none. */
+  getDiscoverPlaylists(categoryId: string): Promise<UnifiedPlaylist[]> {
+    const cached = this.categoryPlaylists.get(categoryId)
+    if (cached && Date.now() - cached.at < CATEGORY_PLAYLISTS_TTL_MS) return cached.value
+    const value = (async () => {
+      const yt = await this.youtube.getAnonymous()
+      const page = await yt.actions.execute('/browse', {
+        browseId: MOODS_AND_GENRES_CATEGORY,
+        params: categoryId,
+        client: 'YTMUSIC',
+        parse: true
+      })
+      const shelves = page.contents_memo?.getType(YTNodes.MusicCarouselShelf) ?? []
+      const toPlaylists = (shelf: YTNodes.MusicCarouselShelf): UnifiedPlaylist[] =>
+        shelf.contents.filterType(YTNodes.MusicTwoRowItem).flatMap((item): UnifiedPlaylist[] => {
+          if (item.item_type !== 'playlist' || !item.id) return []
+          const id = item.id.replace(/^VL/, '')
+          return [
+            {
+              id: makePlaylistId('ytmusic', id),
+              providerId: 'ytmusic',
+              source: 'ytmusic',
+              sourcePlaylistId: id,
+              name: item.title.toString(),
+              description: item.subtitle.toString() || undefined,
+              artworkUrl: bestThumbnail(item.thumbnail),
+              trackCount: 0,
+              editable: false
+            }
+          ]
+        })
+      // YouTube Music's own selections are reliably good; strangers' playlists are the fallback.
+      const curated = shelves.filter((shelf) => !/community/i.test(shelf.header?.title?.toString() ?? ''))
+      const playlists = curated.flatMap(toPlaylists)
+      const result = playlists.length ? playlists : shelves.flatMap(toPlaylists)
+      const seen = new Set<string>()
+      return result.filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+    })()
+    value.catch(() => this.categoryPlaylists.delete(categoryId))
+    this.categoryPlaylists.set(categoryId, { at: Date.now(), value })
+    return value
   }
 }

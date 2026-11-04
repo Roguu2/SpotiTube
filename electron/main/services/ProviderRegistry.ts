@@ -1,4 +1,4 @@
-import type { AuthStatus, LibrarySnapshot, ProviderStatus, SearchResults } from '@core/ipc'
+import type { AuthStatus, DiscoverCategory, LibrarySnapshot, ProviderStatus, SearchResults } from '@core/ipc'
 import {
   parsePlaylistId,
   type IMusicProvider,
@@ -206,6 +206,14 @@ export class ProviderRegistry {
    * Tracks similar to `track`, from YouTube Music's radio for it. Non-YouTube
    * tracks (Spotify, demo, hybrid) use the upload they are matched to.
    */
+  getDiscoverCategories(): Promise<DiscoverCategory[]> {
+    return this.providers.ytmusic.getDiscoverCategories()
+  }
+
+  getDiscoverPlaylists(categoryId: string): Promise<UnifiedPlaylist[]> {
+    return this.providers.ytmusic.getDiscoverPlaylists(categoryId)
+  }
+
   async getSimilar(track: UnifiedTrack): Promise<UnifiedTrack[]> {
     const override = getStreamOverride(track.id)
     const seed =

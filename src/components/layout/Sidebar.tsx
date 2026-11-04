@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { History, Library, Plus, Search, Settings, Volume2 } from 'lucide-react'
+import { Compass, History, Library, Plus, Search, Settings, Volume2 } from 'lucide-react'
 import type { UnifiedPlaylist } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { UpdateBanner } from './UpdateBanner'
@@ -51,6 +51,9 @@ export function Sidebar() {
         </NavButton>
         <NavButton icon={<Search size={18} />} active={view.kind === 'search'} onClick={() => navigate({ kind: 'search' })}>
           Search
+        </NavButton>
+        <NavButton icon={<Compass size={18} />} active={view.kind === 'discover'} onClick={() => navigate({ kind: 'discover' })}>
+          Discover
         </NavButton>
         <NavButton icon={<History size={18} />} active={view.kind === 'history'} onClick={() => navigate({ kind: 'history' })}>
           Recently played

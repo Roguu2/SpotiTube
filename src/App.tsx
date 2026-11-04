@@ -9,6 +9,7 @@ import { LibraryView } from './components/library/LibraryView'
 import { PlaylistView } from './components/library/PlaylistView'
 import { SearchView } from './components/library/SearchView'
 import { HistoryView } from './components/library/HistoryView'
+import { DiscoverView } from './components/library/DiscoverView'
 import { PlayerBar } from './components/player/PlayerBar'
 import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
 import { MiniPlayer } from './components/player/MiniPlayer'
@@ -82,6 +83,7 @@ function FullLayout({ platform, mainRef }: { platform: DesktopPlatform; mainRef:
           {view.kind === 'playlist' && <PlaylistView key={view.playlistId} playlistId={view.playlistId} />}
           {view.kind === 'search' && <SearchView />}
           {view.kind === 'history' && <HistoryView />}
+          {view.kind === 'discover' && <DiscoverView />}
         </main>
         <AnimatePresence initial={false}>{queueOpen && <QueuePanel key="queue" />}</AnimatePresence>
         <AnimatePresence>{nowPlayingOpen && <NowPlayingView key="now-playing" />}</AnimatePresence>

@@ -23,10 +23,14 @@
 - **Side-by-side search** across both catalogs.
 - **Plays everything through YouTube Music** — Spotify tracks are matched to the best YouTube Music upload
   automatically; **Change version** (in the queue) swaps to a live, remix, slowed or other version and pins it.
-  See [How playback works](#how-playback-works).
+  If YouTube won't play an upload here (Premium-only, region-locked, removed), SpotiTube switches to another upload
+  of the same song on its own and remembers to skip that one next time. See [How playback works](#how-playback-works).
 - **Queue** — see what's playing and what's next; **Play next** / **Add to queue** on any track (right-click or ⋯),
   drag & drop or `Alt+↑/↓` to reorder, remove, clear, or jump to any entry. Queued tracks play before the rest of the
   playlist, and shuffle leaves them in place.
+- **Discover** — not sure what to play? **Surprise me** picks a random playlist from any of YouTube Music's moods
+  (Chill, Party, Workout…) or genres (Hip-hop, Rock, Jazz…) and plays it shuffled; or pick a mood or genre and choose
+  one of its playlists. Like one? Save it to your library. Leans local (e.g. Polish rap in Poland).
 - **Now playing & synced lyrics** — click the cover in the player bar (or `Ctrl/Cmd + L`) for a full-screen view
   over a backdrop made from the album art, with time-synced lyrics from [LRCLIB](https://lrclib.net) that follow the
   song. Click a line to jump there; nudge the sync if a version's timing differs.
@@ -41,7 +45,8 @@
 - **Discord status** — optionally show *Listening to SpotiTube* with the song, artist, cover, a progress bar and an
   *Open on Spotify / YouTube Music* button on your Discord profile (Settings; Discord must be running).
 - **Mini player** — shrink the window into a small always-on-top player (`Ctrl/Cmd + Shift + M` or the
-  picture-in-picture button); YouTube's player stands in for the cover. It remembers where you put it.
+  picture-in-picture button): compact (square video and the essentials) or larger with every control. YouTube's
+  player stands in for the cover. It remembers where you put it and which size you like.
 - **Autoplay & radio** — when the queue runs out, SpotiTube keeps going with similar tracks (shown as *Autoplay* at the
   end of the queue, so anything you queue still plays first; switch it off in the queue or in Settings).
   **Start radio** on any track builds an endless mix around it.

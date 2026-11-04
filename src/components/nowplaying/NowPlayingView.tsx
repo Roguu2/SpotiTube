@@ -4,7 +4,6 @@ import { ChevronDown } from 'lucide-react'
 import { artistLine, type UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { IconButton } from '@/components/ui/IconButton'
-import { SourceBadge } from '@/components/ui/SourceBadge'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
 import { LikeButton } from '@/components/ui/LikeButton'
 import { useEmbedActive } from '@/components/player/EmbedMiniPlayer'
@@ -115,10 +114,9 @@ export function NowPlayingView() {
                 <AddToHybridMenu tracks={[current]} className="mt-1 size-8 shrink-0" />
               </div>
               <p className="mt-1.5 truncate text-[clamp(15px,1.3vw,19px)] text-white/70">{artistLine(current)}</p>
-              <div className="mt-3 flex min-w-0 items-center gap-2 text-[12.5px] text-white/45">
-                <SourceBadge source={current.source} variant="tag" />
-                {current.album?.name && <span className="truncate">{current.album.name}</span>}
-              </div>
+              {current.album?.name && (
+                <p className="mt-2 truncate text-[12.5px] text-white/45">{current.album.name}</p>
+              )}
             </div>
           </div>
 
