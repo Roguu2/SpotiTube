@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { ArrowDownUp, ArrowLeft, Ellipsis, ListEnd, ListPlus, LoaderCircle, Pencil, Play, Search, Shuffle, Trash } from 'lucide-react'
+import { ArrowDownUp, ArrowLeft, Check, ChevronDown, Ellipsis, ListEnd, ListPlus, LoaderCircle, Pencil, Play, Search, Shuffle, Trash } from 'lucide-react'
 import { Artwork } from '@/components/ui/Artwork'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { Button, IconButton } from '@/components/ui/IconButton'
-import { Menu, MenuItem } from '@/components/ui/Menu'
+import { Menu, MenuItem, MenuLabel } from '@/components/ui/Menu'
 import { TrackList } from './TrackList'
 import { AddToHybridMenu } from './AddToHybridMenu'
 import { useLibraryStore } from '@/store/useLibraryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
-import { formatTotalDuration, formatTrackCount } from '@/lib/format'
+import { cx, formatTotalDuration, formatTrackCount } from '@/lib/format'
 import { filterAndSortTracks, readPlaylistSort, TRACK_SORT_LABELS, writePlaylistSort, type TrackSort } from '@/lib/trackFilter'
 
 export function PlaylistView({ playlistId }: { playlistId: string }) {
@@ -179,21 +179,7 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
                 className="h-8 w-52 rounded-full bg-white/[0.06] pr-3 pl-8 text-[12.5px] text-zinc-100 ring-1 ring-white/10 outline-none placeholder:text-zinc-500 focus:bg-white/10 focus:ring-white/25 [&::-webkit-search-cancel-button]:hidden"
               />
             </div>
-            <label className="relative flex items-center">
-              <ArrowDownUp size={13} className="pointer-events-none absolute left-2.5 text-zinc-500" />
-              <select
-                value={sort}
-                onChange={(e) => changeSort(e.target.value as TrackSort)}
-                aria-label="Sort tracks"
-                className="h-8 appearance-none rounded-full bg-white/[0.06] pr-3 pl-7 text-[12.5px] text-zinc-200 ring-1 ring-white/10 outline-none hover:bg-white/10"
-              >
-                {(Object.keys(TRACK_SORT_LABELS) as TrackSort[]).map((key) => (
-                  <option key={key} value={key}>
-                    {TRACK_SORT_LABELS[key]}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SortMenu sort={sort} onChange={changeSort} />
           </div>
         )}
       </div>
@@ -226,5 +212,49 @@ export function PlaylistView({ playlistId }: { playlistId: string }) {
         )}
       </div>
     </div>
+  )
+}
+
+/** The sort picker: a pill like the search field next to it, opening the app's own menu. */
+function SortMenu({ sort, onChange }: { sort: TrackSort; onChange: (sort: TrackSort) => void }) {
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null)
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button
+        ref={setAnchor}
+        type="button"
+        aria-label="Sort tracks"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={cx(
+          'flex h-8 items-center gap-1.5 rounded-full pr-2.5 pl-3 text-[12.5px] ring-1 transition-colors',
+          open || sort !== 'custom'
+            ? 'bg-white/10 text-zinc-100 ring-white/20'
+            : 'bg-white/[0.06] text-zinc-300 ring-white/10 hover:bg-white/10 hover:text-zinc-100'
+        )}
+      >
+        <ArrowDownUp size={13} className={sort === 'custom' ? 'text-zinc-500' : 'text-spotify'} />
+        {TRACK_SORT_LABELS[sort]}
+        <ChevronDown size={13} className={cx('text-zinc-500 transition-transform', open && 'rotate-180')} />
+      </button>
+      <Menu anchor={anchor} open={open} onClose={() => setOpen(false)} className="w-48">
+        <MenuLabel>Sort by</MenuLabel>
+        {(Object.keys(TRACK_SORT_LABELS) as TrackSort[]).map((key) => (
+          <MenuItem
+            key={key}
+            icon={key === sort ? <Check size={14} className="text-spotify" /> : <span />}
+            onSelect={() => {
+              setOpen(false)
+              onChange(key)
+            }}
+          >
+            {TRACK_SORT_LABELS[key]}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
   )
 }
