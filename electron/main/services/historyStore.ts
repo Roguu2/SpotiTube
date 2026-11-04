@@ -3,7 +3,10 @@ import type { PlayContext, PlaybackSession, PlayRecord } from '@core/ipc'
 import type { UnifiedTrack } from '@core/types'
 
 /** Oldest plays are dropped beyond this many. */
+/** Listening history keeps at most this many plays… */
 const MAX_PLAYS = 500
+/** …and none older than this, so the file stays small however much you listen. */
+const MAX_PLAY_AGE_MS = 180 * 24 * 60 * 60_000
 /** A saved queue is capped so a huge playlist cannot bloat the file. */
 const MAX_SESSION_TRACKS = 5_000
 const REPEAT_MODES = new Set<PlaybackSession['repeat']>(['off', 'all', 'one'])
@@ -67,15 +70,25 @@ function cleanTime(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
 }
 
+/** Newest first, within both limits. */
+function withinLimits(plays: PlayRecord[]): PlayRecord[] {
+  const oldest = Date.now() - MAX_PLAY_AGE_MS
+  return plays.filter((play) => play.playedAt >= oldest).slice(0, MAX_PLAYS)
+}
+
 export function getPlays(): PlayRecord[] {
-  return historyStore.get('plays')
+  const plays = historyStore.get('plays')
+  const kept = withinLimits(plays)
+  // Plays age out while the app is closed; drop them from the file too.
+  if (kept.length !== plays.length) historyStore.set('plays', kept)
+  return kept
 }
 
 export function recordPlay(track: unknown, context: unknown): void {
   if (!isTrack(track)) throw new TypeError('Invalid track payload')
   const clean = sanitizeContext(context)
   const play: PlayRecord = clean ? { track, playedAt: Date.now(), context: clean } : { track, playedAt: Date.now() }
-  historyStore.set('plays', [play, ...historyStore.get('plays')].slice(0, MAX_PLAYS))
+  historyStore.set('plays', withinLimits([play, ...historyStore.get('plays')]))
 }
 
 export function clearPlays(): void {
@@ -154,7 +167,7 @@ export function savePosition(position: unknown, currentTime: unknown): void {
 
 /** Replaces the play history (used when merging other computers' plays in). */
 export function replacePlays(plays: PlayRecord[]): void {
-  historyStore.set('plays', plays.slice(0, MAX_PLAYS))
+  historyStore.set('plays', withinLimits(plays))
 }
 
-export { isTrack as isHistoryTrack, MAX_PLAYS }
+export { isTrack as isHistoryTrack, MAX_PLAYS, MAX_PLAY_AGE_MS }

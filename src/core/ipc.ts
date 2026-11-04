@@ -85,6 +85,9 @@ export const IpcChannels = {
   presenceUpdate: 'presence:update',
   mediaNotifyTrack: 'media:notify-track',
 
+  storageGetUsage: 'storage:get-usage',
+  storageClearCache: 'storage:clear-cache',
+
   discoverGetCategories: 'discover:get-categories',
   discoverGetPlaylists: 'discover:get-playlists',
 
@@ -215,6 +218,15 @@ export interface UpdateState {
 export type AppSettingsPatch = Partial<Omit<AppSettings, 'spotifyRedirectUri'>>
 
 export type MediaCommand = 'play-pause' | 'next' | 'previous' | 'stop'
+
+/** How much SpotiTube keeps on disk, for Settings. */
+export interface StorageUsage {
+  /** Chromium's cache of player files and covers. */
+  cacheBytes: number
+  cacheLimitBytes: number
+  maxPlays: number
+  maxPlayAgeDays: number
+}
 
 /** A mood or genre on YouTube Music's "Moods & genres" page. */
 export interface DiscoverCategory {
@@ -460,6 +472,11 @@ export interface ElectronAPI {
     getSession(deviceId: string): Promise<PlaybackSession | null>
     onStatusChange(listener: (status: SyncStatus) => void): Unsubscribe
     onApplied(listener: (applied: SyncApplied) => void): Unsubscribe
+  }
+  storage: {
+    getUsage(): Promise<StorageUsage>
+    /** Empties the cache of player files and covers; it fills up again as you listen. */
+    clearCache(): Promise<StorageUsage>
   }
   discover: {
     getCategories(): Promise<DiscoverCategory[]>

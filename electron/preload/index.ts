@@ -112,6 +112,10 @@ const electronAPI: ElectronAPI = {
     onStatusChange: (listener) => subscribe<[SyncStatus]>(IpcChannels.syncStatusChanged, listener),
     onApplied: (listener) => subscribe<[SyncApplied]>(IpcChannels.syncApplied, listener)
   },
+  storage: {
+    getUsage: () => invoke(IpcChannels.storageGetUsage),
+    clearCache: () => invoke(IpcChannels.storageClearCache)
+  },
   discover: {
     getCategories: () => invoke(IpcChannels.discoverGetCategories),
     getPlaylists: (categoryId) => invoke(IpcChannels.discoverGetPlaylists, categoryId)

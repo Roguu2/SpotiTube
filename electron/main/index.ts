@@ -11,6 +11,7 @@ import { registerLyricsIpc } from './ipc/lyrics'
 import { initRemote, stopRemote } from './remote'
 import { registerSyncIpc } from './ipc/sync'
 import { registerLikesIpc } from './ipc/likes'
+import { registerStorageIpc } from './ipc/storage'
 import { flushSync } from './services/sync'
 import { DiscordPresence } from './services/discord'
 import { notifyTrack } from './services/trackNotifications'
@@ -110,6 +111,7 @@ async function bootstrap(): Promise<void> {
   initRemote((query) => providers.search(query))
   registerSyncIpc()
   registerLikesIpc({ hybrid, spotify, youtube })
+  registerStorageIpc(DISK_CACHE_LIMIT_BYTES)
 
   const presence = new DiscordPresence()
   ipcMain.on(IpcChannels.presenceUpdate, (event, enabled: unknown, info: PresenceInfo | null) => {
@@ -155,6 +157,11 @@ async function bootstrap(): Promise<void> {
   // Warm up the anonymous InnerTube session so the first play/search is fast.
   void youtube.getAnonymous().catch(() => undefined)
 }
+
+// Chromium's HTTP cache (YouTube player files, covers) would otherwise grow to several hundred MB;
+// over the limit, Chromium drops the least recently used entries itself.
+const DISK_CACHE_LIMIT_BYTES = 100 * 1024 * 1024
+app.commandLine.appendSwitch('disk-cache-size', String(DISK_CACHE_LIMIT_BYTES))
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()

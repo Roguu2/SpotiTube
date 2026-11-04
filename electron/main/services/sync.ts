@@ -23,7 +23,7 @@ import {
   updateSettings,
   type HybridPlaylistRecord
 } from './store'
-import { getPlays, getSession, isHistoryTrack, MAX_PLAYS, replacePlays } from './historyStore'
+import { getPlays, getSession, isHistoryTrack, MAX_PLAY_AGE_MS, MAX_PLAYS, replacePlays } from './historyStore'
 
 /**
  * Sync between computers through a folder the user already syncs (OneDrive,
@@ -305,7 +305,8 @@ function mergeRemotes(files: DeviceFile[]): SyncApplied {
   const plays = getPlays()
   const seen = new Set<string>()
   const union = [...plays, ...files.flatMap((f) => f.plays)]
-    .filter((p) => p.playedAt > clearedAt)
+    // Too-old plays would be dropped again on save and look like a change on every sync.
+    .filter((p) => p.playedAt > Math.max(clearedAt, Date.now() - MAX_PLAY_AGE_MS))
     .filter((p) => {
       const key = `${p.track.id}|${p.playedAt}`
       if (seen.has(key)) return false

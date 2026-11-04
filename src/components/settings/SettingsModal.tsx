@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { ArrowDownToLine, Check, Copy, ExternalLink, FolderSync, LoaderCircle, RotateCw, Smartphone } from 'lucide-react'
-import type { UpdateState } from '@core/ipc'
+import type { StorageUsage, UpdateState } from '@core/ipc'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/IconButton'
 import { SourceBadge } from '@/components/ui/SourceBadge'
@@ -248,6 +248,11 @@ function SettingToggle({
   )
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(0, Math.round(bytes / 1024))} KB`
+  return `${Math.round(bytes / (1024 * 1024))} MB`
+}
+
 function ago(at: number | null): string {
   if (!at) return 'never'
   const minutes = Math.round((Date.now() - at) / 60_000)
@@ -488,8 +493,13 @@ function PlaybackSection() {
   const clearHistory = useHistoryStore((s) => s.clear)
   const setAutoplayEnabled = usePlayerStore((s) => s.setAutoplayEnabled)
   const [ytDlpPath, setYtDlpPath] = useState(settings?.ytDlpPath ?? '')
+  const [storage, setStorage] = useState<StorageUsage | null>(null)
+  const [clearingCache, setClearingCache] = useState(false)
 
   useEffect(() => setYtDlpPath(settings?.ytDlpPath ?? ''), [settings?.ytDlpPath])
+  useEffect(() => {
+    void window.electronAPI.storage.getUsage().then(setStorage)
+  }, [])
 
   if (!settings) return null
   const saveYtDlp = (): void => {
@@ -557,10 +567,36 @@ function PlaybackSection() {
           <span className="block text-[13px] font-medium text-zinc-200">Listening history</span>
           <span className="block text-[11.5px] text-zinc-500">
             {playCount ? `${playCount.toLocaleString()} plays saved on this computer.` : 'Nothing saved yet.'}
+            {storage &&
+              ` Keeps the last ${storage.maxPlays} plays from up to ${Math.round(storage.maxPlayAgeDays / 30)} months; older ones are removed on their own.`}
           </span>
         </span>
         <Button size="sm" variant="secondary" disabled={!playCount} onClick={() => void clearHistory()}>
           Clear
+        </Button>
+      </div>
+      <div className="flex items-start justify-between gap-6">
+        <span>
+          <span className="block text-[13px] font-medium text-zinc-200">Cache</span>
+          <span className="block text-[11.5px] text-zinc-500">
+            {storage
+              ? `Player files and covers: ${formatBytes(storage.cacheBytes)} (capped at ${formatBytes(storage.cacheLimitBytes)}). Clearing it is safe; it refills as you listen.`
+              : 'Checking…'}
+          </span>
+        </span>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={!storage || storage.cacheBytes === 0 || clearingCache}
+          onClick={() => {
+            setClearingCache(true)
+            void window.electronAPI.storage
+              .clearCache()
+              .then(setStorage)
+              .finally(() => setClearingCache(false))
+          }}
+        >
+          {clearingCache ? <LoaderCircle size={13} className="animate-spin" /> : 'Clear'}
         </Button>
       </div>
       <Field label="yt-dlp path (optional)" hint="Used as a last-resort stream extractor. Leave empty to use yt-dlp from your PATH.">
