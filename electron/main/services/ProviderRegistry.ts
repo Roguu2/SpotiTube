@@ -1,4 +1,14 @@
-import type { AuthStatus, DiscoverCategory, LibrarySnapshot, ProviderStatus, SearchResults } from '@core/ipc'
+import type {
+  AlbumPage,
+  AlbumRef,
+  ArtistPage,
+  ArtistRef,
+  AuthStatus,
+  DiscoverCategory,
+  LibrarySnapshot,
+  ProviderStatus,
+  SearchResults
+} from '@core/ipc'
 import {
   parsePlaylistId,
   type IMusicProvider,
@@ -206,6 +216,15 @@ export class ProviderRegistry {
    * Tracks similar to `track`, from YouTube Music's radio for it. Non-YouTube
    * tracks (Spotify, demo, hybrid) use the upload they are matched to.
    */
+  /** Albums and artists come from YouTube Music for every source, since that's where everything plays. */
+  getAlbum(ref: AlbumRef): Promise<AlbumPage> {
+    return this.providers.ytmusic.getAlbum(ref)
+  }
+
+  getArtist(ref: ArtistRef): Promise<ArtistPage> {
+    return this.providers.ytmusic.getArtist(ref)
+  }
+
   getDiscoverCategories(): Promise<DiscoverCategory[]> {
     return this.providers.ytmusic.getDiscoverCategories()
   }

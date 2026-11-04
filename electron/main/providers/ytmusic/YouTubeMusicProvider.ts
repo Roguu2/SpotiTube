@@ -1,6 +1,7 @@
 import { YTNodes, type Helpers } from 'youtubei.js'
 import { makePlaylistId, type IMusicProvider, type UnifiedPlaylist, type UnifiedTrack } from '@core/types'
-import type { DiscoverCategory } from '@core/ipc'
+import type { AlbumPage, AlbumRef, ArtistPage, ArtistRef, DiscoverCategory } from '@core/ipc'
+import { fetchAlbum, fetchArtist } from './catalog'
 import { bestThumbnail, type YouTubeClient } from '../../services/youtube'
 import type { StreamResolver } from '../../services/streamResolver'
 import { collectListItems, listItemToTrack, panelToTracks } from './mapping'
@@ -11,6 +12,9 @@ const MOODS_AND_GENRES_CATEGORY = 'FEmusic_moods_and_genres_category'
 /** The category list barely changes; a category's playlists rotate more often. */
 const CATEGORIES_TTL_MS = 12 * 60 * 60_000
 const CATEGORY_PLAYLISTS_TTL_MS = 60 * 60_000
+/** Album and artist pages, by id or looked-up name. */
+const CATALOG_TTL_MS = 30 * 60_000
+const CATALOG_CACHE_LIMIT = 100
 const MAX_TRACKS_PER_PLAYLIST = 5_000
 const MAX_LIBRARY_PAGES = 10
 
@@ -25,6 +29,7 @@ export class YouTubeMusicProvider implements IMusicProvider {
 
   private categories: { at: number; value: Promise<DiscoverCategory[]> } | null = null
   private readonly categoryPlaylists = new Map<string, { at: number; value: Promise<UnifiedPlaylist[]> }>()
+  private readonly catalog = new Map<string, { at: number; value: Promise<AlbumPage | ArtistPage> }>()
 
   constructor(
     private readonly youtube: YouTubeClient,
@@ -135,6 +140,26 @@ export class YouTubeMusicProvider implements IMusicProvider {
 
   resolveStreamUrl(track: UnifiedTrack): Promise<string> {
     return this.resolver.resolve(track.streamVideoId ?? track.sourceTrackId)
+  }
+
+  getAlbum(ref: AlbumRef): Promise<AlbumPage> {
+    const key = `album|${ref.id ?? ''}|${ref.name}|${ref.artist ?? ''}`
+    return this.cached(key, async () => fetchAlbum(await this.youtube.getAnonymous(), ref)) as Promise<AlbumPage>
+  }
+
+  getArtist(ref: ArtistRef): Promise<ArtistPage> {
+    const key = `artist|${ref.id ?? ''}|${ref.name}`
+    return this.cached(key, async () => fetchArtist(await this.youtube.getAnonymous(), ref)) as Promise<ArtistPage>
+  }
+
+  private cached(key: string, load: () => Promise<AlbumPage | ArtistPage>): Promise<AlbumPage | ArtistPage> {
+    const hit = this.catalog.get(key)
+    if (hit && Date.now() - hit.at < CATALOG_TTL_MS) return hit.value
+    const value = load()
+    value.catch(() => this.catalog.delete(key))
+    this.catalog.set(key, { at: Date.now(), value })
+    if (this.catalog.size > CATALOG_CACHE_LIMIT) this.catalog.delete(this.catalog.keys().next().value as string)
+    return value
   }
 
   /** YouTube Music's "Moods & genres": the first grid holds moods and moments, the second genres. */

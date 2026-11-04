@@ -28,6 +28,9 @@
 - **Queue** — see what's playing and what's next; **Play next** / **Add to queue** on any track (right-click or ⋯),
   drag & drop or `Alt+↑/↓` to reorder, remove, clear, or jump to any entry. Queued tracks play before the rest of the
   playlist, and shuffle leaves them in place.
+- **Albums & artists** — click an album or artist name in any song list, the player bar or Now playing: album
+  pages list every track (play, shuffle, queue or save as a playlist); artist pages show top songs, albums, singles
+  and artists like them, with Play and Radio. They come from YouTube Music for every source, no sign-in needed.
 - **Discover** — not sure what to play? **Surprise me** picks a random playlist from any of YouTube Music's moods
   (Chill, Party, Workout…) or genres (Hip-hop, Rock, Jazz…) and plays it shuffled; or pick a mood or genre and choose
   one of its playlists. Like one? Save it to your library. Leans local (e.g. Polish rap in Poland).

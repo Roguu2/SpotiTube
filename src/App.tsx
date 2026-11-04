@@ -10,6 +10,8 @@ import { PlaylistView } from './components/library/PlaylistView'
 import { SearchView } from './components/library/SearchView'
 import { HistoryView } from './components/library/HistoryView'
 import { DiscoverView } from './components/library/DiscoverView'
+import { AlbumView } from './components/library/AlbumView'
+import { ArtistView } from './components/library/ArtistView'
 import { PlayerBar } from './components/player/PlayerBar'
 import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
 import { MiniPlayer } from './components/player/MiniPlayer'
@@ -84,6 +86,8 @@ function FullLayout({ platform, mainRef }: { platform: DesktopPlatform; mainRef:
           {view.kind === 'search' && <SearchView />}
           {view.kind === 'history' && <HistoryView />}
           {view.kind === 'discover' && <DiscoverView />}
+          {view.kind === 'album' && <AlbumView key={JSON.stringify(view.ref)} albumRef={view.ref} />}
+          {view.kind === 'artist' && <ArtistView key={JSON.stringify(view.ref)} artistRef={view.ref} />}
         </main>
         <AnimatePresence initial={false}>{queueOpen && <QueuePanel key="queue" />}</AnimatePresence>
         <AnimatePresence>{nowPlayingOpen && <NowPlayingView key="now-playing" />}</AnimatePresence>

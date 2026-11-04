@@ -15,11 +15,11 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react'
-import { artistLine } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { IconButton } from '@/components/ui/IconButton'
 import { Slider } from '@/components/ui/Slider'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
+import { ArtistLinks } from '@/components/library/CatalogLinks'
 import { LikeButton } from '@/components/ui/LikeButton'
 import { SeekBar } from './SeekBar'
 import { SleepTimerButton } from './SleepTimerButton'
@@ -75,7 +75,7 @@ function NowPlaying() {
           <LikeButton track={current} className="size-6" />
           <AddToHybridMenu tracks={[current]} className="size-6" />
         </div>
-        <div className="truncate text-[12.5px] text-zinc-400">{artistLine(current)}</div>
+        <ArtistLinks artists={current.artists} className="block text-[12.5px] text-zinc-400" />
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {status === 'error' ? (
             <span className="truncate text-[11px] text-red-400" title={error ?? undefined}>

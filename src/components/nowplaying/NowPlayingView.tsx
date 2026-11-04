@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
-import { artistLine, type UnifiedTrack } from '@core/types'
+import type { UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { IconButton } from '@/components/ui/IconButton'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
+import { AlbumLink, ArtistLinks } from '@/components/library/CatalogLinks'
 import { LikeButton } from '@/components/ui/LikeButton'
 import { useEmbedActive } from '@/components/player/EmbedMiniPlayer'
 import { LyricsPanel } from './LyricsPanel'
@@ -113,9 +114,13 @@ export function NowPlayingView() {
                 <LikeButton track={current} size={22} className="mt-1 size-8" />
                 <AddToHybridMenu tracks={[current]} className="mt-1 size-8 shrink-0" />
               </div>
-              <p className="mt-1.5 truncate text-[clamp(15px,1.3vw,19px)] text-white/70">{artistLine(current)}</p>
+              <p className="mt-1.5 truncate text-[clamp(15px,1.3vw,19px)] text-white/70">
+                <ArtistLinks artists={current.artists} linkClassName="hover:text-white" />
+              </p>
               {current.album?.name && (
-                <p className="mt-2 truncate text-[12.5px] text-white/45">{current.album.name}</p>
+                <p className="mt-2 truncate text-[12.5px] text-white/45">
+                  <AlbumLink track={current} className="hover:text-white" />
+                </p>
               )}
             </div>
           </div>

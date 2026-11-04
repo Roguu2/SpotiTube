@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ProviderStatus, SearchResults } from '@core/ipc'
+import type { AlbumRef, ArtistRef, ProviderStatus, SearchResults } from '@core/ipc'
 import type { UnifiedPlaylist, UnifiedTrack } from '@core/types'
 import { toast } from './useToastStore'
 
@@ -11,6 +11,8 @@ export type View =
   | { kind: 'search' }
   | { kind: 'history' }
   | { kind: 'discover' }
+  | { kind: 'album'; ref: AlbumRef }
+  | { kind: 'artist'; ref: ArtistRef }
 
 export interface TrackListState {
   tracks: UnifiedTrack[]
@@ -70,6 +72,7 @@ function readLastView(): { view: View; filter: LibraryFilter } {
       view?.kind === 'search' ||
       view?.kind === 'history' ||
       view?.kind === 'discover' ||
+      ((view?.kind === 'album' || view?.kind === 'artist') && typeof view.ref?.name === 'string') ||
       (view?.kind === 'playlist' && typeof view.playlistId === 'string')
     return {
       view: valid ? (view as View) : fallback.view,
@@ -96,7 +99,11 @@ function errorText(error: unknown): string {
 
 function sameView(a: View, b: View): boolean {
   if (a.kind !== b.kind) return false
-  return a.kind !== 'playlist' || a.playlistId === (b as Extract<View, { kind: 'playlist' }>).playlistId
+  if (a.kind === 'playlist') return a.playlistId === (b as Extract<View, { kind: 'playlist' }>).playlistId
+  if (a.kind === 'album' || a.kind === 'artist') {
+    return JSON.stringify(a.ref) === JSON.stringify((b as Extract<View, { kind: 'album' | 'artist' }>).ref)
+  }
+  return true
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => {

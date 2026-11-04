@@ -23,6 +23,14 @@ function notifyLibraryChanged(): void {
   }
 }
 
+/** An album or artist reference: a name, plus optionally an id and an artist (all strings). */
+function requireRef(value: unknown): { id?: string; name: string; artist?: string } {
+  const ref = value as Record<string, unknown> | null
+  if (!ref || typeof ref.name !== 'string' || !ref.name.trim()) throw new TypeError('Invalid album or artist')
+  const optional = (key: string): string | undefined => (typeof ref[key] === 'string' ? (ref[key] as string).slice(0, 200) : undefined)
+  return { id: optional('id'), name: ref.name.slice(0, 200), artist: optional('artist') }
+}
+
 function hybridSourceId(playlistId: unknown): string {
   const { providerId, sourcePlaylistId } = parsePlaylistId(requireString(playlistId, 'playlistId'))
   if (providerId !== 'hybrid') throw new Error('Only SpotiTube Hybrid playlists can be edited here')
@@ -36,6 +44,8 @@ export function registerLibraryIpc({ registry, spotifyAuth, spotify, hybrid, you
   )
   handle(IpcChannels.librarySearch, (query: unknown) => registry.search(requireString(query, 'query')))
   handle(IpcChannels.libraryGetSimilar, (track: unknown) => registry.getSimilar(requireTrack<UnifiedTrack>(track)))
+  handle(IpcChannels.libraryGetAlbum, (ref: unknown) => registry.getAlbum(requireRef(ref)))
+  handle(IpcChannels.libraryGetArtist, (ref: unknown) => registry.getArtist(requireRef(ref)))
   handle(IpcChannels.discoverGetCategories, () => registry.getDiscoverCategories())
   handle(IpcChannels.discoverGetPlaylists, (categoryId: unknown) =>
     registry.getDiscoverPlaylists(requireString(categoryId, 'categoryId'))

@@ -1,10 +1,11 @@
 import { memo, useState } from 'react'
 import { Clock3, Play, X } from 'lucide-react'
-import { artistLine, type UnifiedTrack } from '@core/types'
+import type { UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { EqualizerBars } from '@/components/ui/EqualizerBars'
 import { AddToHybridMenu } from './AddToHybridMenu'
 import { TrackQueueMenu } from './TrackQueueMenu'
+import { AlbumLink, ArtistLinks } from './CatalogLinks'
 import { usePlayerStore, type QueueContext } from '@/store/usePlayerStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useLibraryStore } from '@/store/useLibraryStore'
@@ -156,19 +157,19 @@ const TrackRow = memo(function TrackRow({
             )}
           </div>
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-zinc-400">{artistLine(track)}</span>
+            <ArtistLinks artists={track.artists} className="text-zinc-400" />
           </div>
         </div>
       </div>
 
       {!compact && (
-        <span role="cell" className="truncate text-zinc-400">
-          {track.album?.name}
+        <span role="cell" className="min-w-0 truncate text-zinc-400">
+          <AlbumLink track={track} />
         </span>
       )}
 
       <span role="cell" className="text-right text-zinc-400 tabular-nums">
-        {formatDurationMs(track.durationMs)}
+        {track.durationMs > 0 ? formatDurationMs(track.durationMs) : null}
       </span>
 
       <span

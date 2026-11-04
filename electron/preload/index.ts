@@ -47,6 +47,8 @@ const electronAPI: ElectronAPI = {
     getPlaylistTracks: (playlistId) => invoke(IpcChannels.libraryGetPlaylistTracks, playlistId),
     search: (query) => invoke(IpcChannels.librarySearch, query),
     getSimilar: (track) => invoke(IpcChannels.libraryGetSimilar, track),
+    getAlbum: (ref) => invoke(IpcChannels.libraryGetAlbum, ref),
+    getArtist: (ref) => invoke(IpcChannels.libraryGetArtist, ref),
     onChanged: (listener) => subscribe<[]>(IpcChannels.libraryChanged, listener)
   },
   hybrid: {

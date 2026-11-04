@@ -85,6 +85,9 @@ export const IpcChannels = {
   presenceUpdate: 'presence:update',
   mediaNotifyTrack: 'media:notify-track',
 
+  libraryGetAlbum: 'library:get-album',
+  libraryGetArtist: 'library:get-artist',
+
   storageGetUsage: 'storage:get-usage',
   storageClearCache: 'storage:clear-cache',
 
@@ -218,6 +221,60 @@ export interface UpdateState {
 export type AppSettingsPatch = Partial<Omit<AppSettings, 'spotifyRedirectUri'>>
 
 export type MediaCommand = 'play-pause' | 'next' | 'previous' | 'stop'
+
+/**
+ * Points at an album: its YouTube Music id when known (YouTube Music tracks
+ * carry one), otherwise its name and artist, which are looked up there.
+ */
+export interface AlbumRef {
+  id?: string
+  name: string
+  artist?: string
+}
+
+/** Points at an artist the same way: YouTube Music channel id, or a name to look up. */
+export interface ArtistRef {
+  id?: string
+  name: string
+}
+
+export interface AlbumSummary {
+  id: string
+  title: string
+  /** e.g. "2025" or "Single • 2026". */
+  subtitle?: string
+  artworkUrl?: string
+}
+
+export interface ArtistSummary {
+  id: string
+  name: string
+  subtitle?: string
+  artworkUrl?: string
+}
+
+export interface AlbumPage {
+  id: string
+  title: string
+  /** e.g. "Album • 2025". */
+  subtitle?: string
+  /** e.g. "13 songs • 31 minutes". */
+  details?: string
+  artists: ArtistRef[]
+  artworkUrl?: string
+  tracks: UnifiedTrack[]
+}
+
+export interface ArtistPage {
+  id: string
+  name: string
+  artworkUrl?: string
+  description?: string
+  topSongs: UnifiedTrack[]
+  albums: AlbumSummary[]
+  singles: AlbumSummary[]
+  similar: ArtistSummary[]
+}
 
 /** How much SpotiTube keeps on disk, for Settings. */
 export interface StorageUsage {
@@ -398,6 +455,10 @@ export interface ElectronAPI {
     search(query: string): Promise<SearchResults>
     /** Tracks similar to the given one (YouTube Music radio), for autoplay and "Start radio". */
     getSimilar(track: UnifiedTrack): Promise<UnifiedTrack[]>
+    /** An album's page from YouTube Music, found by id or by name. */
+    getAlbum(ref: AlbumRef): Promise<AlbumPage>
+    /** An artist's page from YouTube Music, found by id or by name. */
+    getArtist(ref: ArtistRef): Promise<ArtistPage>
     onChanged(listener: () => void): Unsubscribe
   }
   hybrid: {
