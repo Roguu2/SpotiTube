@@ -157,11 +157,11 @@ function NavButton({ icon, active, onClick, children }: { icon: React.ReactNode;
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cx(
-        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[14px] font-semibold transition-colors',
-        active ? 'bg-white/8 text-zinc-50' : 'text-zinc-400 hover:text-zinc-100'
+        'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[14px] font-semibold transition-colors duration-150',
+        active ? 'bg-white/8 text-zinc-50' : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
       )}
     >
-      {icon}
+      <span className="transition-transform duration-200 ease-out group-hover:scale-110 group-active:scale-95">{icon}</span>
       {children}
     </button>
   )
@@ -175,11 +175,15 @@ function SidebarPlaylist({ playlist, active, playing, onClick }: { playlist: Uni
         onClick={onClick}
         aria-current={active ? 'page' : undefined}
         className={cx(
-          'flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors',
-          active ? 'bg-white/10' : 'hover:bg-white/5'
+          'group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors duration-150',
+          active ? 'bg-white/10' : 'hover:bg-white/[0.06]'
         )}
       >
-        <Artwork src={playlist.artworkUrl} alt="" className="size-9 shrink-0" />
+        <Artwork
+          src={playlist.artworkUrl}
+          alt=""
+          className="size-9 shrink-0 transition duration-200 ease-out group-hover:scale-[1.07] group-hover:shadow-md group-hover:shadow-black/50"
+        />
         <span className="min-w-0 flex-1">
           <span className={cx('block truncate text-[13px] font-medium', playing ? 'text-spotify' : 'text-zinc-200')}>
             {playlist.name}

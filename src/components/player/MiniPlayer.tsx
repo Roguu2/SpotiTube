@@ -118,7 +118,7 @@ function CompactControls() {
         aria-label="Previous"
         disabled={disabled}
         onClick={() => void previous()}
-        className="text-white/70 transition hover:text-white disabled:opacity-40"
+        className="text-white/70 transition duration-150 ease-out hover:scale-115 hover:text-white active:scale-90 disabled:opacity-40"
       >
         <SkipBack size={17} fill="currentColor" />
       </button>
@@ -142,7 +142,7 @@ function CompactControls() {
         aria-label="Next"
         disabled={disabled}
         onClick={() => void next()}
-        className="text-white/70 transition hover:text-white disabled:opacity-40"
+        className="text-white/70 transition duration-150 ease-out hover:scale-115 hover:text-white active:scale-90 disabled:opacity-40"
       >
         <SkipForward size={17} fill="currentColor" />
       </button>

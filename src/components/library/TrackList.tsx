@@ -117,7 +117,7 @@ const TrackRow = memo(function TrackRow({
       // Cheap virtualisation: skip layout/paint for off-screen rows in long playlists.
       style={{ contentVisibility: 'auto', containIntrinsicSize: compact ? 'auto 52px' : 'auto 56px' }}
       className={cx(
-        'group grid items-center gap-3 rounded-lg px-3 outline-none transition-colors hover:bg-white/5 focus-visible:bg-white/8',
+        'group grid cursor-pointer items-center gap-3 rounded-lg px-3 outline-none transition-colors duration-150 hover:bg-white/[0.06] focus-visible:bg-white/8',
         compact
           ? 'grid-cols-[minmax(0,1fr)_3.5rem_4rem] py-1.5'
           : 'grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,0.7fr)_4.5rem_6.5rem] py-2',
@@ -142,7 +142,7 @@ const TrackRow = memo(function TrackRow({
 
       <div role="cell" className="flex min-w-0 items-center gap-3">
         <div className="relative shrink-0">
-          <Artwork src={track.artworkUrl} alt="" className="size-10" />
+          <Artwork src={track.artworkUrl} alt="" className="size-10 transition duration-200 ease-out group-hover:scale-[1.06] group-hover:shadow-lg group-hover:shadow-black/50" />
           {compact && (
             <button
               type="button"
@@ -156,7 +156,11 @@ const TrackRow = memo(function TrackRow({
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className={cx('truncate font-medium', active ? 'text-spotify' : 'text-zinc-100')}>{track.title}</span>
+            <span
+              className={cx('truncate font-medium transition-colors', active ? 'text-spotify' : 'text-zinc-100 group-hover:text-white')}
+            >
+              {track.title}
+            </span>
             {track.explicit && (
               <span className="shrink-0 rounded-sm bg-zinc-600/60 px-1 text-[9px] font-bold text-zinc-300">E</span>
             )}
@@ -173,7 +177,7 @@ const TrackRow = memo(function TrackRow({
         </span>
       )}
 
-      <span role="cell" className="text-right text-zinc-400 tabular-nums">
+      <span role="cell" className="text-right text-zinc-400 tabular-nums transition-colors group-hover:text-zinc-200">
         {track.durationMs > 0 ? formatDurationMs(track.durationMs) : null}
       </span>
 

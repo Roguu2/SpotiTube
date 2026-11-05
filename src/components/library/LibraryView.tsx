@@ -54,7 +54,7 @@ export function LibraryView() {
             aria-selected={filter === tab.id}
             onClick={() => setFilter(tab.id)}
             className={cx(
-              'inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors',
+              'inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition duration-150 ease-out hover:-translate-y-px active:translate-y-0 active:scale-[0.97]',
               filter === tab.id
                 ? tab.id === 'spotify'
                   ? 'bg-spotify text-black'

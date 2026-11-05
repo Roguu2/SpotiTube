@@ -105,13 +105,13 @@ function ArtistSections({ artist, context }: { artist: ArtistPage; context: { la
                 key={similar.id}
                 type="button"
                 onClick={() => navigate({ kind: 'artist', ref: { id: similar.id, name: similar.name } })}
-                className="group rounded-xl p-2.5 text-center transition hover:bg-white/[0.06]"
+                className="group rounded-xl p-2.5 text-center transition duration-200 ease-out hover:-translate-y-1 hover:bg-white/[0.06]"
               >
                 <img
                   src={similar.artworkUrl}
                   alt=""
                   loading="lazy"
-                  className="mx-auto aspect-square w-full rounded-full bg-zinc-900 object-cover shadow-lg shadow-black/40"
+                  className="mx-auto aspect-square w-full rounded-full bg-zinc-900 object-cover shadow-lg shadow-black/40 transition duration-300 ease-out group-hover:scale-105 group-hover:shadow-xl"
                 />
                 <div className="mt-2.5 truncate text-[13.5px] font-semibold text-zinc-100">{similar.name}</div>
                 {similar.subtitle && <div className="truncate text-[11.5px] text-zinc-500">{similar.subtitle}</div>}
@@ -136,9 +136,16 @@ function AlbumShelf({ title, albums, artistName }: { title: string; albums: Albu
             key={album.id}
             type="button"
             onClick={() => navigate({ kind: 'album', ref: { id: album.id, name: album.title, artist: artistName } })}
-            className="rounded-xl p-2.5 text-left transition hover:bg-white/[0.06]"
+            className="group rounded-xl p-2.5 text-left transition duration-200 ease-out hover:-translate-y-1 hover:bg-white/[0.06] hover:shadow-xl hover:shadow-black/40"
           >
-            <Artwork src={album.artworkUrl} alt="" rounded="lg" className="aspect-square w-full shadow-lg shadow-black/40" />
+            <div className="overflow-hidden rounded-lg shadow-lg shadow-black/40">
+              <Artwork
+                src={album.artworkUrl}
+                alt=""
+                rounded="lg"
+                className="aspect-square w-full transition-transform duration-300 ease-out group-hover:scale-105"
+              />
+            </div>
             <div className="mt-2.5 truncate text-[13.5px] font-semibold text-zinc-100">{album.title}</div>
             {album.subtitle && <div className="truncate text-[12px] text-zinc-500">{album.subtitle}</div>}
           </button>

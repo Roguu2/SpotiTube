@@ -36,13 +36,18 @@ export function PlaylistCard({ playlist }: { playlist: UnifiedPlaylist }) {
       onClick={() => navigate({ kind: 'playlist', playlistId: playlist.id })}
       onKeyDown={(e) => e.key === 'Enter' && navigate({ kind: 'playlist', playlistId: playlist.id })}
       className={cx(
-        'group cursor-pointer rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/5 transition-[background,box-shadow] hover:bg-white/[0.06]',
+        'group cursor-pointer rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/5 transition duration-200 ease-out hover:-translate-y-1 hover:bg-white/[0.06] hover:shadow-xl hover:shadow-black/40 active:translate-y-0',
         RING[playlist.source],
         isCurrent && 'ring-white/15'
       )}
     >
-      <div className="relative">
-        <Artwork src={playlist.artworkUrl} alt={playlist.name} rounded="lg" className="aspect-square w-full shadow-lg shadow-black/40" />
+      <div className="relative overflow-hidden rounded-lg shadow-lg shadow-black/40">
+        <Artwork
+          src={playlist.artworkUrl}
+          alt={playlist.name}
+          rounded="lg"
+          className="aspect-square w-full transition-transform duration-300 ease-out group-hover:scale-105"
+        />
         <SourceBadge source={playlist.source} className="absolute top-2 left-2 shadow-md shadow-black/50 backdrop-blur-md" />
         <button
           type="button"

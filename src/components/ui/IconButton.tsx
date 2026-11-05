@@ -17,7 +17,8 @@ export function IconButton({ label, active = false, size = 'md', className, chil
       title={label}
       aria-pressed={active || undefined}
       className={cx(
-        'inline-flex shrink-0 items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-35',
+        // Transform and colour only, so hover and press never trigger layout.
+        'inline-flex shrink-0 items-center justify-center rounded-full transition duration-150 ease-out hover:scale-110 active:scale-90 disabled:pointer-events-none disabled:opacity-35',
         active ? 'text-spotify hover:text-spotify/80' : 'text-zinc-400 hover:bg-white/8 hover:text-zinc-100',
         sizes[size],
         className
@@ -47,7 +48,7 @@ export function Button({ variant = 'secondary', size = 'md', className, children
     <button
       type="button"
       className={cx(
-        'inline-flex shrink-0 items-center justify-center rounded-lg font-medium transition-colors disabled:pointer-events-none disabled:opacity-40',
+        'inline-flex shrink-0 items-center justify-center rounded-lg font-medium transition duration-150 ease-out hover:-translate-y-px hover:shadow-lg hover:shadow-black/30 active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40',
         variants[variant],
         sizes[size],
         className

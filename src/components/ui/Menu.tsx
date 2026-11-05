@@ -99,11 +99,15 @@ export function MenuItem({ icon, onSelect, danger = false, disabled = false, chi
       disabled={disabled}
       onClick={onSelect}
       className={cx(
-        'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors disabled:opacity-40',
+        'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition duration-150 ease-out active:scale-[0.98] disabled:opacity-40',
         danger ? 'text-red-300 hover:bg-red-500/15' : 'text-zinc-200 hover:bg-white/8'
       )}
     >
-      {icon && <span className="flex size-4 items-center justify-center text-zinc-400">{icon}</span>}
+      {icon && (
+        <span className="flex size-4 items-center justify-center text-zinc-400 transition-transform duration-150 group-hover:scale-110">
+          {icon}
+        </span>
+      )}
       <span className="min-w-0 flex-1 truncate">{children}</span>
     </button>
   )

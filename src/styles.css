@@ -34,6 +34,27 @@
     outline-offset: 2px;
   }
 
+  /* Tailwind 4 gives buttons the default arrow; everything clickable shows a hand instead. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='menuitem']:not(:disabled),
+  [role='tab'],
+  a[href],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  /* Hover and press effects are small transforms; with "reduce motion" on, they snap instead. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

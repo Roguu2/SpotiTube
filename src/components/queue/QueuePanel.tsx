@@ -281,7 +281,7 @@ const QueueRow = memo(function QueueRow({
       onKeyDown={onKeyDown}
       style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 52px' }}
       className={cx(
-        'group relative flex items-center gap-2 rounded-lg py-1.5 pr-1.5 pl-1 outline-none transition-colors hover:bg-white/5 focus-visible:bg-white/8',
+        'group relative flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-1.5 pl-1 outline-none transition-colors duration-150 hover:bg-white/[0.06] focus-visible:bg-white/8',
         dragging && 'opacity-40'
       )}
     >
@@ -289,7 +289,7 @@ const QueueRow = memo(function QueueRow({
       {dropAfter && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-spotify" />}
       <GripVertical size={14} className="shrink-0 cursor-grab text-zinc-600 group-hover:text-zinc-400" aria-hidden="true" />
       <div className="relative shrink-0">
-        <Artwork src={track.artworkUrl} alt="" className="size-9" />
+        <Artwork src={track.artworkUrl} alt="" className="size-9 transition duration-200 ease-out group-hover:scale-[1.06] group-hover:shadow-lg group-hover:shadow-black/50" />
         <button
           type="button"
           aria-label={`Play ${track.title}`}

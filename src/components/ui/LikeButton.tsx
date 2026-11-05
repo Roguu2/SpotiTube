@@ -16,7 +16,7 @@ export function LikeButton({ track, size = 16, className }: { track: UnifiedTrac
       aria-pressed={liked}
       onClick={() => void toggle(track)}
       className={cx(
-        'inline-flex shrink-0 items-center justify-center rounded-full transition active:scale-90',
+        'inline-flex shrink-0 items-center justify-center rounded-full transition duration-150 ease-out hover:scale-115 active:scale-90',
         liked ? 'text-spotify hover:text-spotify/80' : 'text-zinc-400 hover:text-zinc-100',
         className
       )}

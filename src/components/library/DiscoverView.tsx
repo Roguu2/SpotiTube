@@ -129,7 +129,7 @@ function TileSection({
                 background: `linear-gradient(135deg, hsl(${h} 70% 42% / ${active ? 0.95 : 0.55}), hsl(${(h + 40) % 360} 70% 28% / ${active ? 0.9 : 0.45}))`
               }}
               className={cx(
-                'relative h-[60px] overflow-hidden rounded-xl px-3.5 text-left text-[14px] font-bold text-white shadow-md shadow-black/20 transition hover:brightness-125',
+                'relative h-[60px] overflow-hidden rounded-xl px-3.5 text-left text-[14px] font-bold text-white shadow-md shadow-black/20 transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/40 hover:brightness-125 active:translate-y-0 active:scale-[0.98]',
                 active && 'ring-2 ring-white/80'
               )}
             >
@@ -204,15 +204,20 @@ function DiscoverCard({ category, playlist }: { category: DiscoverCategory; play
   const save = useDiscoverStore((s) => s.save)
 
   return (
-    <div className="group relative rounded-xl bg-white/[0.03] p-3 transition hover:bg-white/[0.07]">
+    <div className="group relative rounded-xl bg-white/[0.03] p-3 transition duration-200 ease-out hover:-translate-y-1 hover:bg-white/[0.07] hover:shadow-xl hover:shadow-black/40">
       <button
         type="button"
         onClick={() => void play(category, playlist)}
         aria-label={`Play ${playlist.name}`}
         className="block w-full text-left"
       >
-        <div className="relative">
-          <Artwork src={playlist.artworkUrl} alt="" rounded="lg" className="aspect-square w-full shadow-lg shadow-black/40" />
+        <div className="relative overflow-hidden rounded-lg shadow-lg shadow-black/40">
+          <Artwork
+            src={playlist.artworkUrl}
+            alt=""
+            rounded="lg"
+            className="aspect-square w-full transition-transform duration-300 ease-out group-hover:scale-105"
+          />
           <span
             className={cx(
               'absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full bg-spotify text-black shadow-lg shadow-black/50 transition',
