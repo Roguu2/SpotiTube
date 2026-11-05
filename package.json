@@ -1,7 +1,7 @@
 {
   "name": "spotitube",
   "productName": "SpotiTube",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Unified Spotify + YouTube Music desktop player.",
   "homepage": "https://github.com/Roguu2/SpotiTube",
   "repository": {
