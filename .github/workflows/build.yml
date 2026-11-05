@@ -1,5 +1,10 @@
 name: Build
 
+# Pushes and pull requests build Linux only: the source repo is private, where GitHub bills
+# Windows minutes ×2 and macOS ×10, and a full build on every push used up the monthly quota.
+# Releases (release.yml) still build every platform; run this workflow by hand
+# (Actions → Build → Run workflow) to get all three installers without releasing.
+
 on:
   push:
     branches: [main]
@@ -17,23 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            target: --win
-            artifact: SpotiTube-windows
-            files: release/*/*.exe
-          # Intel runner: Apple Silicon runners are often out of capacity, and the universal
-          # .dmg built here runs natively on both kinds of Mac.
-          - os: macos-15-intel
-            target: --mac
-            artifact: SpotiTube-macos
-            files: release/*/*.dmg
-          - os: ubuntu-latest
-            target: --linux
-            artifact: SpotiTube-linux
-            files: |
-              release/*/*.AppImage
-              release/*/*.deb
+        # Intel runner for macOS: Apple Silicon runners are often out of capacity, and the
+        # universal .dmg built there runs natively on both kinds of Mac.
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-latest","windows-latest","macos-15-intel"]' || '["ubuntu-latest"]') }}
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: false
     steps:
@@ -51,11 +42,11 @@ jobs:
         run: npm run build
 
       - name: Package installer
-        run: npx electron-builder ${{ matrix.target }} --publish never
+        run: npx electron-builder ${{ fromJSON('{"Linux":"--linux","Windows":"--win","macOS":"--mac"}')[runner.os] }} --publish never
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.files }}
+          name: SpotiTube-${{ runner.os }}
+          path: ${{ fromJSON('{"Linux":"release/*/*.AppImage\nrelease/*/*.deb","Windows":"release/*/*.exe","macOS":"release/*/*.dmg"}')[runner.os] }}
           if-no-files-found: error
           retention-days: 14

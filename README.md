@@ -171,8 +171,9 @@ When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.
 
 Two GitHub Actions workflows build on `windows-latest`, `macos-15-intel` and `ubuntu-latest`:
 
-- **`build.yml`** — on every push to `main` and on pull requests: type-check, bundle, package, and upload the
-  `.exe`, `.dmg`, `.AppImage` and `.deb` as workflow artifacts (kept 14 days).
+- **`build.yml`** — on every push to `main` and on pull requests: type-check, bundle and package the Linux
+  `.AppImage` and `.deb` (cheapest runner minutes for a private repo). Run it by hand (*Actions → Build → Run
+  workflow*) to also get the `.exe` and `.dmg`. Installers are kept as workflow artifacts for 14 days.
 - **`release.yml`** — on a `v*` tag: builds every installer and publishes them to the public
   [SpotiTube-releases](https://github.com/Roguu2/SpotiTube-releases/releases) repository. The source repo stays
   private; the public repo only holds installers and the update feed.
