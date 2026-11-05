@@ -170,4 +170,4 @@ export function replacePlays(plays: PlayRecord[]): void {
   historyStore.set('plays', withinLimits(plays))
 }
 
-export { isTrack as isHistoryTrack, MAX_PLAYS, MAX_PLAY_AGE_MS }
+export { MAX_PLAYS, MAX_PLAY_AGE_MS }

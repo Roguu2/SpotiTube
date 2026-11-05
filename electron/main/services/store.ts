@@ -1,5 +1,7 @@
 import Store from 'electron-store'
-import { safeStorage } from 'electron'
+import { rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { app, safeStorage } from 'electron'
 import type { AppSettings, AppSettingsPatch } from '@core/ipc'
 import type { StreamCandidate, UnifiedTrack } from '@core/types'
 
@@ -31,7 +33,7 @@ interface PersistedState {
   streamOverrides: Record<string, StreamCandidate>
 }
 
-export type SecretKey = 'spotifyTokens' | 'ytmusicCookie' | 'remoteToken'
+export type SecretKey = 'spotifyTokens' | 'ytmusicCookie'
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   spotifyClientId: '',
@@ -43,9 +45,9 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   restoreSession: true,
   autoplay: true,
   smoothFades: true,
-  remoteEnabled: false,
   discordPresence: false,
-  trackNotifications: false
+  trackNotifications: false,
+  ytmusicSync: false
 }
 
 const store = new Store<PersistedState>({
@@ -60,6 +62,24 @@ const store = new Store<PersistedState>({
     streamOverrides: {}
   }
 })
+
+/**
+ * Drops what removed features left behind: the phone remote's setting and
+ * pairing secret, and the folder sync's state file. Safe to run every launch.
+ */
+export function cleanUpRemovedFeatures(): void {
+  const settings = store.get('settings') as PersistedSettings & { remoteEnabled?: unknown }
+  if ('remoteEnabled' in settings) {
+    const { remoteEnabled: _remoteEnabled, ...rest } = settings
+    store.set('settings', rest)
+  }
+  const secrets = store.get('secrets') as Record<string, unknown>
+  if ('remoteToken' in secrets) {
+    const { remoteToken: _remoteToken, ...rest } = secrets
+    store.set('secrets', rest as PersistedState['secrets'])
+  }
+  rmSync(join(app.getPath('userData'), 'sync.json'), { force: true })
+}
 
 export function getSettings(): AppSettings {
   return { ...DEFAULT_SETTINGS, ...store.get('settings'), spotifyRedirectUri: SPOTIFY_REDIRECT_URI }
@@ -76,9 +96,9 @@ export function updateSettings(patch: AppSettingsPatch): AppSettings {
   if (patch.restoreSession !== undefined) next.restoreSession = patch.restoreSession
   if (patch.autoplay !== undefined) next.autoplay = patch.autoplay
   if (patch.smoothFades !== undefined) next.smoothFades = patch.smoothFades
-  if (patch.remoteEnabled !== undefined) next.remoteEnabled = patch.remoteEnabled
   if (patch.discordPresence !== undefined) next.discordPresence = patch.discordPresence
   if (patch.trackNotifications !== undefined) next.trackNotifications = patch.trackNotifications
+  if (patch.ytmusicSync !== undefined) next.ytmusicSync = patch.ytmusicSync
   store.set('settings', next)
   return getSettings()
 }
@@ -124,8 +144,17 @@ export function getHybridPlaylists(): HybridPlaylistRecord[] {
   return store.get('hybridPlaylists')
 }
 
+const hybridListeners = new Set<() => void>()
+
 export function saveHybridPlaylists(playlists: HybridPlaylistRecord[]): void {
   store.set('hybridPlaylists', playlists)
+  for (const listener of hybridListeners) listener()
+}
+
+/** Called after every change to SpotiTube's own playlists (for pushing them to YouTube Music). */
+export function onHybridPlaylistsChanged(listener: () => void): () => void {
+  hybridListeners.add(listener)
+  return () => hybridListeners.delete(listener)
 }
 
 export function getStreamOverrides(): Record<string, StreamCandidate> {

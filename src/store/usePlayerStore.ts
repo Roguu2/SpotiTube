@@ -71,8 +71,11 @@ interface PlayerState {
   /** Jumps to an upcoming entry and plays it. */
   playFromQueue(orderPosition: number): Promise<void>
 
-  /** Plays a track and keeps going with tracks similar to it, whatever the autoplay setting. */
-  startRadio(track: UnifiedTrack): Promise<void>
+  /**
+   * Plays a track and keeps going with tracks similar to it, whatever the autoplay setting.
+   * `quiet` skips the confirmation toast (for plays that start a radio implicitly, e.g. from search).
+   */
+  startRadio(track: UnifiedTrack, options?: { quiet?: boolean }): Promise<void>
   /** Turns autoplay on or off; turning it off drops the similar tracks still to come. */
   setAutoplayEnabled(enabled: boolean): Promise<void>
 }
@@ -615,10 +618,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       await start(orderPosition)
     },
 
-    async startRadio(track) {
+    async startRadio(track, options) {
       await get().playQueue([track], 0, { label: `Radio · ${track.title}` })
       radioActive = true
-      if (await extendWithSimilar(true)) toast.success(`Radio started from “${track.title}”`)
+      const extended = await extendWithSimilar(true)
+      if (options?.quiet) return
+      if (extended) toast.success(`Radio started from “${track.title}”`)
       else toast.error(`Couldn't find tracks similar to “${track.title}”`)
     },
 

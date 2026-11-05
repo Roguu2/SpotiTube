@@ -20,7 +20,11 @@
   (it syncs like any hybrid playlist) and, when the account is connected, to Spotify's Liked Songs or your YouTube
   Music likes. Spotify accounts connected before 0.4 need to reconnect once to allow it.
 - **Hybrid playlists** — mix tracks from both services into local SpotiTube playlists.
-- **Side-by-side search** across both catalogs.
+- **Side-by-side search** across both catalogs. Playing a result starts a radio: that song, then music like it.
+- **Sync through your YouTube Music account** — with YouTube Music connected, turn on *Sync playlists with this
+  account* in Settings: your SpotiTube playlists (and Liked songs) are kept as private playlists in that account, so
+  every computer signed in to it, and the YouTube Music apps, have them. Additions, removals, renames and deletions on
+  either side are merged; Spotify tracks travel as the YouTube upload SpotiTube plays for them.
 - **Plays everything through YouTube Music** — Spotify tracks are matched to the best YouTube Music upload
   automatically; **Change version** (in the queue) swaps to a live, remix, slowed or other version and pins it.
   If YouTube won't play an upload here (Premium-only, region-locked, removed), SpotiTube switches to another upload
@@ -37,12 +41,6 @@
 - **Now playing & synced lyrics** — click the cover in the player bar (or `Ctrl/Cmd + L`) for a full-screen view
   over a backdrop made from the album art, with time-synced lyrics from [LRCLIB](https://lrclib.net) that follow the
   song. Click a line to jump there; nudge the sync if a version's timing differs.
-- **Phone remote** — turn it on in Settings, scan the QR code, and your phone's browser becomes a remote: cover,
-  play/pause/skip/seek, volume, shuffle/repeat, the queue, and search with *Play now / Play next / Add to queue /
-  Start radio*. Nothing to install; add it to the home screen for one-tap access. See [Phone remote](#phone-remote).
-- **Sync between computers** — choose a folder you already sync (OneDrive, Dropbox, iCloud Drive, Google Drive) on
-  each computer: hybrid playlists, chosen song versions, playback settings and listening history follow you, and
-  **Continue here** picks up a song where another computer left off. No server, no account; secrets never sync.
 - **Song notifications** — optionally, a quiet system notification with the cover when a new song starts while
   SpotiTube is in the background (Settings).
 - **Discord status** — optionally show *Listening to SpotiTube* with the song, artist, cover, a progress bar and an
@@ -62,6 +60,7 @@
 - **Resume where you left off** — the queue, shuffle/repeat and the playing track come back on launch, paused at the
   same spot. Drag the seek bar before pressing play to start somewhere else. Can be turned off in Settings. The window
   size and position and the last open view are restored too.
+- **Start with Windows** (or at login on macOS), from Settings.
 - **Desktop integration** — frameless window with native controls (Windows) or inset traffic lights (macOS);
   previous / play-pause / next buttons on the **taskbar thumbnail** (Windows) or in the **Dock menu** (macOS); the
   current song in the window title; media keys, OS media overlay (MediaSession), tray controls, optional close-to-tray.
@@ -151,19 +150,6 @@ same position.
 
 When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.js) fails outright, SpotiTube can use
 [yt-dlp](https://github.com/yt-dlp/yt-dlp) if it is installed on your `PATH` or configured in Settings.
-
-## Phone remote
-
-SpotiTube serves a small web page on your local network (port `48620`, or the next free one) while the remote is on.
-Scanning the QR code in **Settings → Phone remote** opens it and pairs the phone in one go.
-
-- **Off by default.** Nothing listens on the network until you turn it on.
-- **Paired phones only.** The QR code carries a random secret (kept in your OS keychain). Every request needs it, wrong
-  guesses are rate-limited, and **Reset pairing** issues a new one, which unpairs every phone at once.
-- **Local network only.** Requests must address the computer by IP, which blocks DNS-rebinding tricks from websites.
-  The page loads no third-party scripts, and the phone can only play tracks from its own search results.
-- The connection is plain HTTP on your Wi-Fi, so only turn it on in networks you trust. On Windows, allow SpotiTube on
-  *private* networks when the firewall asks.
 
 ## Keyboard shortcuts
 
@@ -313,7 +299,7 @@ Everything is stored locally in the app's user-data directory:
 | Windows | `%APPDATA%\SpotiTube\` |
 | macOS | `~/Library/Application Support/SpotiTube/` |
 
-`sync.json` remembers the sync folder and this computer's sync id. `spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
+`spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
 the last 500 plays, `session.json` the saved queue and `window-state.json` the window size and position. `dsp-profiles.json` holds per-track audio settings and custom EQ presets. Deleting the folder resets the app.
 
 ## Troubleshooting

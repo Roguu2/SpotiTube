@@ -4,6 +4,7 @@ import type { UnifiedTrack } from '@core/types'
 import { SourceBadge } from '@/components/ui/SourceBadge'
 import { TrackList } from './TrackList'
 import { useLibraryStore } from '@/store/useLibraryStore'
+import { usePlayerStore } from '@/store/usePlayerStore'
 
 export function SearchView() {
   const search = useLibraryStore((s) => s.search)
@@ -75,6 +76,7 @@ interface ResultColumnProps {
 }
 
 function ResultColumn({ source, tracks, error, note, query }: ResultColumnProps) {
+  const startRadio = usePlayerStore((s) => s.startRadio)
   return (
     <section aria-label={`${source === 'spotify' ? 'Spotify' : 'YouTube Music'} results`} className="min-w-0">
       <header className="mb-3 flex items-center gap-2.5">
@@ -84,7 +86,13 @@ function ResultColumn({ source, tracks, error, note, query }: ResultColumnProps)
       {note && <p className="mb-3 rounded-lg bg-white/[0.04] px-3 py-2 text-[12px] text-zinc-400">{note}</p>}
       {error && <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-[12px] text-red-300">{error}</p>}
       {tracks.length ? (
-        <TrackList compact tracks={tracks} context={{ label: `“${query}” on ${source === 'spotify' ? 'Spotify' : 'YT Music'}` }} />
+        <TrackList
+          compact
+          tracks={tracks}
+          context={{ label: `“${query}” on ${source === 'spotify' ? 'Spotify' : 'YT Music'}` }}
+          // A search result plays as a radio: the song, then music like it, not the other results.
+          onPlayTrack={(track) => void startRadio(track, { quiet: true })}
+        />
       ) : (
         !error && <p className="py-8 text-center text-[13px] text-zinc-500">No matches.</p>
       )}

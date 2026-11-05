@@ -42,6 +42,13 @@ interface Providers {
 
 /** Routes library, search and playback requests to the provider that owns each item. */
 export class ProviderRegistry {
+  /** YouTube Music playlist ids the library leaves out (twins of SpotiTube playlists). */
+  private hiddenPlaylists: () => Set<string> = () => new Set()
+
+  hidePlaylists(source: () => Set<string>): void {
+    this.hiddenPlaylists = source
+  }
+
   constructor(
     private readonly providers: Providers,
     private readonly matcher: TrackMatcher,
@@ -83,7 +90,8 @@ export class ProviderRegistry {
     ])
 
     return {
-      playlists: [...hybrid, ...spotify.playlists, ...ytmusic.playlists],
+      // Twins of SpotiTube playlists kept in the YouTube Music account show up once, as the SpotiTube playlist.
+      playlists: [...hybrid, ...spotify.playlists, ...ytmusic.playlists.filter((p) => !this.hiddenPlaylists().has(p.sourcePlaylistId))],
       providers: [
         { providerId: 'hybrid', authenticated: true, showingDemo: false },
         spotify.status,

@@ -8,17 +8,16 @@ import { registerDspIpc } from './ipc/dsp'
 import { registerUpdateIpc } from './ipc/updates'
 import { registerHistoryIpc } from './ipc/history'
 import { registerLyricsIpc } from './ipc/lyrics'
-import { initRemote, stopRemote } from './remote'
-import { registerSyncIpc } from './ipc/sync'
 import { registerLikesIpc } from './ipc/likes'
 import { registerStorageIpc } from './ipc/storage'
-import { flushSync } from './services/sync'
+import { registerYtSyncIpc } from './ipc/ytsync'
+import { YtMusicSync } from './services/ytmusicSync'
 import { DiscordPresence } from './services/discord'
 import { notifyTrack } from './services/trackNotifications'
 import { isMiniMode } from './services/windowState'
 import { isTrustedSender } from './ipc/handle'
 import { UpdateService } from './services/updater'
-import { getSettings } from './services/store'
+import { cleanUpRemovedFeatures, getSettings } from './services/store'
 import { YouTubeClient } from './services/youtube'
 import { StreamResolver } from './services/streamResolver'
 import { TrackMatcher } from './services/trackMatcher'
@@ -107,11 +106,14 @@ async function bootstrap(): Promise<void> {
   registerDspIpc()
   registerHistoryIpc()
   registerLyricsIpc()
-  const providers = registry
-  initRemote((query) => providers.search(query))
-  registerSyncIpc()
   registerLikesIpc({ hybrid, spotify, youtube })
   registerStorageIpc(DISK_CACHE_LIMIT_BYTES)
+  cleanUpRemovedFeatures()
+
+  const ytSync = new YtMusicSync({ youtube, matcher, listAccountPlaylists: () => ytmusic.getPlaylists() })
+  registry.hidePlaylists(() => ytSync.mirroredPlaylistIds())
+  registerYtSyncIpc(ytSync)
+  ytSync.start()
 
   const presence = new DiscordPresence()
   ipcMain.on(IpcChannels.presenceUpdate, (event, enabled: unknown, info: PresenceInfo | null) => {
@@ -143,9 +145,8 @@ async function bootstrap(): Promise<void> {
 
   app.on('will-quit', () => {
     unregisterMediaKeys()
-    stopRemote()
-    flushSync()
     presence.destroy()
+    ytSync.stop()
     updates.stop()
     proxy.stop()
     tray?.destroy()

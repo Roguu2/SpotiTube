@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowDownToLine, Check, Copy, ExternalLink, FolderSync, LoaderCircle, RotateCw, Smartphone } from 'lucide-react'
-import type { StorageUsage, UpdateState } from '@core/ipc'
+import { ArrowDownToLine, Check, Copy, ExternalLink, LoaderCircle, RotateCw } from 'lucide-react'
+import type { StorageUsage, UpdateState, YtSyncStatus } from '@core/ipc'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/IconButton'
 import { SourceBadge } from '@/components/ui/SourceBadge'
@@ -8,8 +8,6 @@ import { useSettingsStore } from '@/store/useSettingsStore'
 import { useUpdateStore } from '@/store/useUpdateStore'
 import { useHistoryStore } from '@/store/useHistoryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
-import { useRemoteStore } from '@/store/useRemoteStore'
-import { useSyncStore } from '@/store/useSyncStore'
 import { cx } from '@/lib/format'
 
 export function SettingsModal() {
@@ -23,8 +21,6 @@ export function SettingsModal() {
         <SpotifySection />
         <YouTubeMusicSection />
         <PlaybackSection />
-        <RemoteSection />
-        <SyncSection />
         <UpdatesSection />
         <section className="px-6 py-4 text-[12px] text-zinc-500">
           SpotiTube {appInfo ? `v${appInfo.version}` : ''} · Credentials and cookies are encrypted with your operating
@@ -169,9 +165,12 @@ function YouTubeMusicSection() {
       </header>
 
       {connected ? (
-        <Button variant="danger" onClick={() => void disconnect()}>
-          Disconnect
-        </Button>
+        <>
+          <YtMusicSyncSettings />
+          <Button variant="danger" onClick={() => void disconnect()}>
+            Disconnect
+          </Button>
+        </>
       ) : (
         <>
           <Field
@@ -228,8 +227,20 @@ function SettingToggle({
   disabled?: boolean
 }) {
   return (
-    <label className={cx('flex items-start justify-between gap-6', disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer')}>
-      <span>
+    <label
+      className={cx(
+        'group relative -mx-2.5 flex items-start justify-between gap-6 rounded-lg px-2.5 py-1.5',
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      )}
+    >
+      {/* Hover is opacity and transform only: composited, so it never triggers layout. */}
+      {!disabled && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-lg bg-white/[0.045] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+        />
+      )}
+      <span className="relative">
         <span className="block text-[13px] font-medium text-zinc-200">{label}</span>
         <span className="block text-[11.5px] text-zinc-500">{description}</span>
       </span>
@@ -240,11 +251,87 @@ function SettingToggle({
         aria-label={label}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={cx('relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors', checked ? 'bg-spotify' : 'bg-white/15')}
+        className={cx(
+          'relative mt-0.5 h-5 w-9 shrink-0 cursor-pointer rounded-full transition-[background-color,box-shadow] duration-150 disabled:cursor-not-allowed',
+          checked ? 'bg-spotify group-hover:shadow-[0_0_0_4px_rgba(29,185,84,0.18)]' : 'bg-white/15 group-hover:shadow-[0_0_0_4px_rgba(255,255,255,0.06)]'
+        )}
       >
-        <span className={cx('absolute top-0.5 size-4 rounded-full bg-white shadow transition-[left]', checked ? 'left-[18px]' : 'left-0.5')} />
+        <span
+          className={cx(
+            'absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition-transform duration-200 ease-out group-active:scale-90',
+            checked && 'translate-x-4'
+          )}
+        />
       </button>
     </label>
+  )
+}
+
+/** Sync through the connected YouTube Music account: SpotiTube playlists live there too, on every device. */
+function YtMusicSyncSettings() {
+  const [status, setStatus] = useState<YtSyncStatus | null>(null)
+
+  useEffect(() => {
+    void window.electronAPI.ytsync.getStatus().then(setStatus)
+    return window.electronAPI.ytsync.onStatusChange(setStatus)
+  }, [])
+
+  if (!status) return null
+  return (
+    <div className="space-y-2.5">
+      <SettingToggle
+        label="Sync playlists with this account"
+        description="Your SpotiTube playlists (including Liked songs) are kept as private playlists in this YouTube Music account, so every computer signed in to it — and the YouTube Music app — has them. Changes on any side are merged."
+        checked={status.enabled}
+        onChange={(v) => void window.electronAPI.ytsync.setEnabled(v).then(setStatus)}
+      />
+      {status.enabled && (
+        <div className="flex items-center justify-between gap-4 rounded-lg bg-black/25 px-3.5 py-2.5 ring-1 ring-white/6">
+          <div className="min-w-0 text-[12px]">
+            {status.error ? (
+              <span className="text-red-400">{status.error}</span>
+            ) : (
+              <span className="text-zinc-400">
+                {status.running
+                  ? 'Syncing…'
+                  : `${status.playlists} ${status.playlists === 1 ? 'playlist' : 'playlists'} in sync · last synced ${ago(status.lastSyncAt)}`}
+              </span>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={status.running}
+            onClick={() => void window.electronAPI.ytsync.syncNow().then(setStatus)}
+          >
+            {status.running ? <LoaderCircle size={13} className="animate-spin" /> : <RotateCw size={13} />} Sync now
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Start with Windows / open at login on macOS; Linux desktops handle autostart themselves. */
+function AutostartToggle() {
+  const platform = useSettingsStore((s) => s.appInfo?.platform)
+  const [enabled, setEnabled] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    void window.electronAPI.app.getAutostart().then(setEnabled)
+  }, [])
+
+  if (platform === 'linux' || enabled === null) return null
+  return (
+    <SettingToggle
+      label={platform === 'darwin' ? 'Open at login' : 'Start with Windows'}
+      description="Open SpotiTube automatically when you sign in to your computer."
+      checked={enabled}
+      onChange={(v) => {
+        setEnabled(v)
+        void window.electronAPI.app.setAutostart(v).then(setEnabled)
+      }}
+    />
   )
 }
 
@@ -260,148 +347,6 @@ function ago(at: number | null): string {
   if (minutes < 60) return `${minutes} min ago`
   const hours = Math.round(minutes / 60)
   return hours < 24 ? `${hours} h ago` : `${Math.round(hours / 24)} d ago`
-}
-
-function SyncSection() {
-  const status = useSyncStore((s) => s.status)
-  const busy = useSyncStore((s) => s.busy)
-  const load = useSyncStore((s) => s.load)
-  const chooseFolder = useSyncStore((s) => s.chooseFolder)
-  const stop = useSyncStore((s) => s.stop)
-  const syncNow = useSyncStore((s) => s.syncNow)
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  if (!status) return null
-
-  return (
-    <section className="space-y-4 px-6 py-5">
-      <h3 className="flex items-center gap-2.5 text-[14px] font-semibold">
-        <FolderSync size={15} className="text-zinc-400" /> Sync between computers
-      </h3>
-      <p className="text-[12px] leading-relaxed text-zinc-500">
-        Pick a folder you already sync — OneDrive, Dropbox, iCloud Drive or Google Drive — on each computer. Hybrid
-        playlists, chosen song versions, playback settings and listening history follow you, and you can continue a song
-        where another computer left off. Accounts and passwords never sync.
-      </p>
-      {status.enabled ? (
-        <div className="space-y-3 rounded-lg bg-black/25 px-3.5 py-3 ring-1 ring-white/6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="truncate font-mono text-[11.5px] text-zinc-300" title={status.folder ?? undefined}>
-                {status.folder}
-              </div>
-              <div className="text-[11.5px] text-zinc-500">
-                This computer: {status.deviceName} · last synced {ago(status.lastSyncAt)}
-              </div>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void syncNow()}>
-                {busy ? <LoaderCircle size={13} className="animate-spin" /> : <RotateCw size={13} />} Sync now
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => void stop()}>
-                Stop
-              </Button>
-            </div>
-          </div>
-          {status.error && <p className="text-[12px] text-red-400">{status.error}</p>}
-          {status.devices.length > 0 ? (
-            <ul className="space-y-1 text-[12px] text-zinc-400">
-              {status.devices.map((device) => (
-                <li key={device.id} className="flex justify-between gap-4">
-                  <span className="truncate">{device.name}</span>
-                  <span className="shrink-0 text-zinc-500">seen {ago(device.lastSeenAt)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[12px] text-zinc-500">No other computer in this folder yet — choose the same folder there.</p>
-          )}
-        </div>
-      ) : (
-        <Button variant="secondary" disabled={busy} onClick={() => void chooseFolder()}>
-          {busy ? <LoaderCircle size={14} className="animate-spin" /> : <FolderSync size={14} />} Choose sync folder…
-        </Button>
-      )}
-    </section>
-  )
-}
-
-function RemoteSection() {
-  const status = useRemoteStore((s) => s.status)
-  const busy = useRemoteStore((s) => s.busy)
-  const setEnabled = useRemoteStore((s) => s.setEnabled)
-  const resetPairing = useRemoteStore((s) => s.resetPairing)
-  const [copied, setCopied] = useState(false)
-
-  if (!status) return null
-  const live = status.enabled && status.running
-
-  const copy = (): void => {
-    if (!status.url) return
-    void navigator.clipboard.writeText(status.url).then(() => {
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
-    })
-  }
-
-  return (
-    <section className="space-y-4 px-6 py-5">
-      <h3 className="flex items-center gap-2.5 text-[14px] font-semibold">
-        <Smartphone size={15} className="text-zinc-400" /> Phone remote
-        {live && (
-          <span className="rounded-full bg-white/8 px-2 py-0.5 text-[11px] font-medium text-zinc-300">
-            {status.clients === 0 ? 'No phone connected' : status.clients === 1 ? '1 phone connected' : `${status.clients} phones connected`}
-          </span>
-        )}
-      </h3>
-      <SettingToggle
-        label="Control SpotiTube from your phone"
-        description="Your phone's browser becomes a remote — play, skip, volume, queue and search — while it's on the same Wi-Fi."
-        checked={status.enabled}
-        onChange={(v) => void setEnabled(v)}
-      />
-      {busy && (
-        <p className="flex items-center gap-2 text-[12px] text-zinc-500">
-          <LoaderCircle size={13} className="animate-spin" /> Starting…
-        </p>
-      )}
-      {status.enabled && status.error && <p className="text-[12px] text-red-400">{status.error}</p>}
-      {live && status.qrDataUrl && status.url && (
-        <div className="flex gap-5 rounded-lg bg-black/25 p-4 ring-1 ring-white/6">
-          <img src={status.qrDataUrl} alt="QR code that opens and pairs the remote" className="size-36 shrink-0 rounded-lg bg-white p-1.5" />
-          <div className="min-w-0 space-y-2.5 text-[12.5px] text-zinc-400">
-            <ol className="list-decimal space-y-1 pl-4">
-              <li>Connect your phone to the same Wi-Fi as this computer.</li>
-              <li>Scan the code with the phone&apos;s camera — that opens and pairs the remote.</li>
-              <li>Add it to the home screen for one-tap access next time.</li>
-            </ol>
-            <button
-              type="button"
-              onClick={copy}
-              title="Copy address"
-              className="flex max-w-full items-center gap-1.5 truncate rounded-md bg-white/6 px-2 py-1 font-mono text-[11.5px] text-zinc-300 hover:bg-white/10"
-            >
-              {copied ? <Check size={12} className="shrink-0 text-spotify" /> : <Copy size={12} className="shrink-0" />}
-              <span className="truncate">{status.url}</span>
-            </button>
-            {status.otherUrls.length > 0 && (
-              <p className="text-[11px] text-zinc-500">Not loading? Other addresses of this computer: {status.otherUrls.join(', ')}</p>
-            )}
-            <p className="text-[11px] text-zinc-500">
-              Anyone on your network with this code can control playback. If Windows asks, allow SpotiTube on private
-              networks.{' '}
-              <button type="button" onClick={() => void resetPairing()} className="text-zinc-300 underline-offset-2 hover:underline">
-                Reset pairing
-              </button>
-            </p>
-          </div>
-        </div>
-      )}
-    </section>
-  )
 }
 
 function UpdatesSection() {
@@ -521,6 +466,7 @@ function PlaybackSection() {
         checked={settings.syntheticFallback}
         onChange={(v) => void update({ syntheticFallback: v })}
       />
+      <AutostartToggle />
       <SettingToggle
         label="Close to tray"
         description="Keep playing in the system tray when the window is closed."

@@ -25,6 +25,8 @@ interface TrackListProps {
   indexOffset?: number
   /** Hides the column header, for sections after the first. */
   hideHeader?: boolean
+  /** Replaces "play this list from here", e.g. search results start a radio from the chosen track. */
+  onPlayTrack?: (track: UnifiedTrack) => void
 }
 
 export function TrackList({
@@ -34,7 +36,8 @@ export function TrackList({
   compact = false,
   queueTracks,
   indexOffset = 0,
-  hideHeader = false
+  hideHeader = false,
+  onPlayTrack
 }: TrackListProps) {
   const currentId = usePlayerStore((s) => s.current?.id)
   const isPlaying = useAudioEngineStore((s) => s.transport.isPlaying)
@@ -66,7 +69,9 @@ export function TrackList({
             compact={compact}
             active={track.id === currentId}
             playing={track.id === currentId && isPlaying}
-            onPlay={() => void playQueue(queueTracks ?? tracks, indexOffset + index, context)}
+            onPlay={() =>
+              onPlayTrack ? onPlayTrack(track) : void playQueue(queueTracks ?? tracks, indexOffset + index, context)
+            }
             onRemove={hybridPlaylistId ? () => void removeFromHybrid(hybridPlaylistId, [track.id]) : undefined}
             hybridPlaylistId={hybridPlaylistId}
           />

@@ -8,6 +8,8 @@ import type { DspPersistedState, DspSettings, EqPreset, LoopRegion, TrackDspProf
 
 export const IpcChannels = {
   appGetInfo: 'app:get-info',
+  appGetAutostart: 'app:get-autostart',
+  appSetAutostart: 'app:set-autostart',
 
   windowMinimize: 'window:minimize',
   windowToggleMaximize: 'window:toggle-maximize',
@@ -67,26 +69,16 @@ export const IpcChannels = {
 
   lyricsGet: 'lyrics:get',
 
-  remoteGetStatus: 'remote:get-status',
-  remoteSetEnabled: 'remote:set-enabled',
-  remoteResetPairing: 'remote:reset-pairing',
-  remoteStatusChanged: 'remote:status-changed',
-  remoteCommand: 'remote:command',
-  remotePublishState: 'remote:publish-state',
-
-  syncGetStatus: 'sync:get-status',
-  syncChooseFolder: 'sync:choose-folder',
-  syncStop: 'sync:stop',
-  syncNow: 'sync:now',
-  syncGetSession: 'sync:get-session',
-  syncStatusChanged: 'sync:status-changed',
-  syncApplied: 'sync:applied',
-
   presenceUpdate: 'presence:update',
   mediaNotifyTrack: 'media:notify-track',
 
   libraryGetAlbum: 'library:get-album',
   libraryGetArtist: 'library:get-artist',
+
+  ytsyncGetStatus: 'ytsync:get-status',
+  ytsyncSetEnabled: 'ytsync:set-enabled',
+  ytsyncNow: 'ytsync:now',
+  ytsyncStatusChanged: 'ytsync:status-changed',
 
   storageGetUsage: 'storage:get-usage',
   storageClearCache: 'storage:clear-cache',
@@ -159,12 +151,12 @@ export interface AppSettings {
   autoplay: boolean
   /** Short volume fades when skipping, pausing and resuming. */
   smoothFades: boolean
-  /** Serve the phone remote on the local network. */
-  remoteEnabled: boolean
   /** Show what's playing as your Discord status. */
   discordPresence: boolean
   /** A system notification when a new song starts while SpotiTube is in the background. */
   trackNotifications: boolean
+  /** Keep SpotiTube playlists in the connected YouTube Music account, so every device has them. */
+  ytmusicSync: boolean
 }
 
 /** Where a play started from, as shown in the queue and in Recently played. */
@@ -276,6 +268,18 @@ export interface ArtistPage {
   similar: ArtistSummary[]
 }
 
+/** Sync through the YouTube Music account, for Settings. */
+export interface YtSyncStatus {
+  enabled: boolean
+  /** A YouTube Music account is connected (sync needs one). */
+  connected: boolean
+  running: boolean
+  lastSyncAt: number | null
+  /** SpotiTube playlists with a twin in the account. */
+  playlists: number
+  error: string | null
+}
+
 /** How much SpotiTube keeps on disk, for Settings. */
 export interface StorageUsage {
   /** Chromium's cache of player files and covers. */
@@ -347,97 +351,12 @@ export interface Lyrics {
   durationSec: number | null
 }
 
-/** A track as the phone remote shows it. */
-export interface RemoteTrack {
-  id: string
-  title: string
-  artists: string
-  album?: string
-  artworkUrl?: string
-  durationMs: number
-  source: SourceId
-}
-
-export interface RemoteQueueItem {
-  /** Position in the play order; jumping there plays it. */
-  position: number
-  kind: 'queued' | 'autoplay' | 'up-next'
-  track: RemoteTrack
-}
-
-/** What the phone remote shows, published by the renderer a few times per second at most. */
-export interface RemoteState {
-  track: RemoteTrack | null
-  isPlaying: boolean
-  isBuffering: boolean
-  /** Seconds into the track when the snapshot was taken. */
-  position: number
-  duration: number
-  volume: number
-  muted: boolean
-  shuffle: boolean
-  repeat: 'off' | 'all' | 'one'
-  context: string | null
-  /** The next few upcoming entries. */
-  queue: RemoteQueueItem[]
-  /** All upcoming entries, including those not listed. */
-  queueTotal: number
-}
-
-/** A command from the phone, with search results already resolved to full tracks by the main process. */
-export type RemoteCommand =
-  | { type: 'toggle' | 'next' | 'previous' | 'mute' | 'shuffle' | 'repeat' }
-  | { type: 'seek'; seconds: number }
-  | { type: 'volume'; volume: number }
-  | { type: 'jump'; position: number }
-  | { type: 'play-now' | 'play-next' | 'add-to-queue' | 'radio'; track: UnifiedTrack }
-
-export interface RemoteStatus {
-  enabled: boolean
-  running: boolean
-  /** Address to open on the phone (without the pairing secret). */
-  url: string | null
-  /** Other addresses this computer has, if the main one isn't reachable. */
-  otherUrls: string[]
-  /** QR code (data URL) that opens the remote and pairs the phone in one scan. */
-  qrDataUrl: string | null
-  /** Phones connected right now. */
-  clients: number
-  error: string | null
-}
-
-/** A session another computer was in the middle of, offered as "Continue here". */
-export interface RemoteSessionInfo {
-  deviceId: string
-  deviceName: string
-  savedAt: number
-  currentTime: number
-  track: { title: string; artists: string; artworkUrl?: string }
-}
-
-export interface SyncStatus {
-  enabled: boolean
-  folder: string | null
-  /** This computer's name as the others see it. */
-  deviceName: string
-  lastSyncAt: number | null
-  error: string | null
-  /** The other computers syncing through the folder. */
-  devices: { id: string; name: string; platform: string; lastSeenAt: number }[]
-  /** Their sessions newer than this computer's, newest first. */
-  sessions: RemoteSessionInfo[]
-}
-
-/** What a sync changed on this computer, so the renderer knows what to reload. */
-export interface SyncApplied {
-  library: boolean
-  history: boolean
-  settings: boolean
-}
-
 export interface ElectronAPI {
   app: {
     getInfo(): Promise<AppInfo>
+    /** Whether SpotiTube starts when you sign in (Windows and macOS). */
+    getAutostart(): Promise<boolean>
+    setAutostart(enabled: boolean): Promise<boolean>
   }
   window: {
     minimize(): void
@@ -523,16 +442,11 @@ export interface ElectronAPI {
     /** `null` when no lyrics are known for the track. */
     get(track: UnifiedTrack): Promise<Lyrics | null>
   }
-  sync: {
-    getStatus(): Promise<SyncStatus>
-    /** Asks for a folder (OneDrive, Dropbox, iCloud Drive…) and starts syncing through it. */
-    chooseFolder(): Promise<SyncStatus>
-    stop(): Promise<SyncStatus>
-    syncNow(): Promise<SyncStatus>
-    /** The full session of another computer, for "Continue here". */
-    getSession(deviceId: string): Promise<PlaybackSession | null>
-    onStatusChange(listener: (status: SyncStatus) => void): Unsubscribe
-    onApplied(listener: (applied: SyncApplied) => void): Unsubscribe
+  ytsync: {
+    getStatus(): Promise<YtSyncStatus>
+    setEnabled(enabled: boolean): Promise<YtSyncStatus>
+    syncNow(): Promise<YtSyncStatus>
+    onStatusChange(listener: (status: YtSyncStatus) => void): Unsubscribe
   }
   storage: {
     getUsage(): Promise<StorageUsage>
@@ -552,14 +466,5 @@ export interface ElectronAPI {
   presence: {
     /** Turns the Discord status on or off and sets what it shows. */
     update(enabled: boolean, info: PresenceInfo | null): void
-  }
-  remote: {
-    getStatus(): Promise<RemoteStatus>
-    setEnabled(enabled: boolean): Promise<RemoteStatus>
-    /** New pairing secret: every paired phone has to scan the QR code again. */
-    resetPairing(): Promise<RemoteStatus>
-    onStatusChange(listener: (status: RemoteStatus) => void): Unsubscribe
-    onCommand(listener: (command: RemoteCommand) => void): Unsubscribe
-    publishState(state: RemoteState): void
   }
 }

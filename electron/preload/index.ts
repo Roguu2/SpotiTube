@@ -5,11 +5,8 @@ import {
   type IpcChannel,
   type IpcResult,
   type MediaCommand,
-  type RemoteCommand,
-  type RemoteStatus,
-  type SyncApplied,
-  type SyncStatus,
-  type UpdateState
+  type UpdateState,
+  type YtSyncStatus
 } from '@core/ipc'
 
 /** Invokes a main-process handler and unwraps its {@link IpcResult} envelope. */
@@ -31,7 +28,9 @@ function subscribe<T extends unknown[]>(channel: IpcChannel, listener: (...args:
 
 const electronAPI: ElectronAPI = {
   app: {
-    getInfo: () => ipcRenderer.invoke(IpcChannels.appGetInfo)
+    getInfo: () => ipcRenderer.invoke(IpcChannels.appGetInfo),
+    getAutostart: () => ipcRenderer.invoke(IpcChannels.appGetAutostart),
+    setAutostart: (enabled) => ipcRenderer.invoke(IpcChannels.appSetAutostart, enabled)
   },
   window: {
     minimize: () => ipcRenderer.send(IpcChannels.windowMinimize),
@@ -105,14 +104,11 @@ const electronAPI: ElectronAPI = {
   lyrics: {
     get: (track) => invoke(IpcChannels.lyricsGet, track)
   },
-  sync: {
-    getStatus: () => invoke(IpcChannels.syncGetStatus),
-    chooseFolder: () => invoke(IpcChannels.syncChooseFolder),
-    stop: () => invoke(IpcChannels.syncStop),
-    syncNow: () => invoke(IpcChannels.syncNow),
-    getSession: (deviceId) => invoke(IpcChannels.syncGetSession, deviceId),
-    onStatusChange: (listener) => subscribe<[SyncStatus]>(IpcChannels.syncStatusChanged, listener),
-    onApplied: (listener) => subscribe<[SyncApplied]>(IpcChannels.syncApplied, listener)
+  ytsync: {
+    getStatus: () => invoke(IpcChannels.ytsyncGetStatus),
+    setEnabled: (enabled) => invoke(IpcChannels.ytsyncSetEnabled, enabled),
+    syncNow: () => invoke(IpcChannels.ytsyncNow),
+    onStatusChange: (listener) => subscribe<[YtSyncStatus]>(IpcChannels.ytsyncStatusChanged, listener)
   },
   storage: {
     getUsage: () => invoke(IpcChannels.storageGetUsage),
@@ -129,14 +125,7 @@ const electronAPI: ElectronAPI = {
   presence: {
     update: (enabled, info) => ipcRenderer.send(IpcChannels.presenceUpdate, enabled, info)
   },
-  remote: {
-    getStatus: () => invoke(IpcChannels.remoteGetStatus),
-    setEnabled: (enabled) => invoke(IpcChannels.remoteSetEnabled, enabled),
-    resetPairing: () => invoke(IpcChannels.remoteResetPairing),
-    onStatusChange: (listener) => subscribe<[RemoteStatus]>(IpcChannels.remoteStatusChanged, listener),
-    onCommand: (listener) => subscribe<[RemoteCommand]>(IpcChannels.remoteCommand, listener),
-    publishState: (state) => ipcRenderer.send(IpcChannels.remotePublishState, state)
-  }
+
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

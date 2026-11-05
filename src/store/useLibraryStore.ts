@@ -146,7 +146,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
         const snapshot = await window.electronAPI.library.getPlaylists()
         const ids = new Set(snapshot.playlists.map((p) => p.id))
         // Drop cached tracks of playlists that disappeared (e.g. demo → real account), and of
-        // playlists whose length changed behind our back (sync, likes, the phone remote).
+        // playlists whose length changed behind our back (sync, likes).
         const counts = new Map(snapshot.playlists.map((p) => [p.id, p.trackCount]))
         const view = get().view
         const viewing = view.kind === 'playlist' ? view.playlistId : null

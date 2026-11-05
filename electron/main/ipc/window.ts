@@ -21,6 +21,15 @@ export function registerWindowIpc(): void {
     })
   )
 
+  // Start at sign-in: Windows (a per-user Run entry) and macOS (a login item); Linux has no equivalent.
+  const autostartSupported = process.platform === 'win32' || process.platform === 'darwin'
+  ipcMain.handle(IpcChannels.appGetAutostart, () => autostartSupported && app.getLoginItemSettings().openAtLogin)
+  ipcMain.handle(IpcChannels.appSetAutostart, (event, enabled: unknown) => {
+    if (!autostartSupported || !isTrustedSender(event)) return false
+    app.setLoginItemSettings({ openAtLogin: enabled === true })
+    return app.getLoginItemSettings().openAtLogin
+  })
+
   ipcMain.on(IpcChannels.windowMinimize, (event) => senderWindow(event)?.minimize())
 
   ipcMain.on(IpcChannels.windowToggleMaximize, (event) => {
