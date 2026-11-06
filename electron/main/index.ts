@@ -11,6 +11,8 @@ import { registerLyricsIpc } from './ipc/lyrics'
 import { registerLikesIpc } from './ipc/likes'
 import { registerStorageIpc } from './ipc/storage'
 import { registerYtSyncIpc } from './ipc/ytsync'
+import { registerCozyIpc } from './ipc/cozy'
+import { registerMediaScheme, serveMedia } from './services/companionImage'
 import { YtMusicSync } from './services/ytmusicSync'
 import { DiscordPresence } from './services/discord'
 import { notifyTrack } from './services/trackNotifications'
@@ -37,6 +39,9 @@ import { HybridProvider } from './providers/hybrid/HybridProvider'
 import { DemoProvider } from './providers/demo/DemoProvider'
 
 const APP_ID = 'com.spotitube.app'
+
+// Before the app is ready: the page loads your companion picture from this scheme.
+registerMediaScheme()
 
 let mainWindow: BrowserWindow | null = null
 let tray: AppTray | null = null
@@ -128,6 +133,8 @@ async function bootstrap(): Promise<void> {
   registerLyricsIpc()
   registerLikesIpc({ hybrid, spotify, youtube })
   registerStorageIpc(DISK_CACHE_LIMIT_BYTES)
+  serveMedia()
+  registerCozyIpc()
   cleanUpRemovedFeatures()
 
   const ytSync = new YtMusicSync({ youtube, matcher, listAccountPlaylists: () => ytmusic.getPlaylists() })

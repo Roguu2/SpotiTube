@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { PIXEL_SPRITES, layerRuns, type PixelSprite } from './pixelSprites'
+import { cx } from '@/lib/format'
 
 /**
  * A little companion in the corner of cozy mode: it nods along while music
@@ -8,7 +9,7 @@ import { PIXEL_SPRITES, layerRuns, type PixelSprite } from './pixelSprites'
  * and cost nothing to ship.
  */
 
-export type CompanionId = 'none' | 'girl' | 'juice' | 'cat' | 'dog' | 'cocoa'
+export type CompanionId = 'none' | 'girl' | 'juice' | 'cat' | 'dog' | 'cocoa' | 'custom'
 export type CompanionLook = 'stylized' | 'pixel'
 
 export const COMPANIONS: { id: CompanionId; label: string }[] = [
@@ -17,7 +18,8 @@ export const COMPANIONS: { id: CompanionId; label: string }[] = [
   { id: 'juice', label: 'Juice' },
   { id: 'cat', label: 'Cat' },
   { id: 'dog', label: 'Puppy' },
-  { id: 'cocoa', label: 'Cocoa' }
+  { id: 'cocoa', label: 'Cocoa' },
+  { id: 'custom', label: 'Yours' }
 ]
 
 export function isCompanionId(value: unknown): value is CompanionId {
@@ -34,11 +36,26 @@ interface CompanionProps {
   playing: boolean
   /** "r g b" of the scene's light, for the details that follow the scene (headphones, mug glow). */
   accent: string
+  /** Your own picture, for the 'custom' companion. */
+  imageUrl?: string | null
   className?: string
 }
 
-export function Companion({ id, look, playing, accent, className }: CompanionProps) {
+export function Companion({ id, look, playing, accent, imageUrl, className }: CompanionProps) {
   if (id === 'none') return null
+  if (id === 'custom') {
+    if (!imageUrl) return null
+    // Your picture sways to the music and breathes while paused; the pixel look keeps its pixels crisp.
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className={cx(className, 'object-contain object-bottom', playing ? 'st-img-sway' : 'st-img-doze', look === 'pixel' && '[image-rendering:pixelated]')}
+      />
+    )
+  }
   return (
     <svg viewBox="0 0 120 124" className={className} aria-hidden="true" overflow="visible">
       {/* A soft shadow it sits on. */}

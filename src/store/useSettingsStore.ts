@@ -66,6 +66,8 @@ interface SettingsState {
   cozyCompanion: CompanionId
   /** Smooth and stylised, or pixel art. */
   cozyCompanionLook: CompanionLook
+  /** Where your own companion picture loads from; null when you haven't picked one. */
+  cozyCompanionImage: string | null
   /** Cozy mode's scene, or 'auto' to follow the genre of what's playing. */
   cozyScene: SceneChoice
 
@@ -84,6 +86,10 @@ interface SettingsState {
   setCozyMode(enabled: boolean): Promise<void>
   setCozyCompanion(companion: CompanionId): void
   setCozyCompanionLook(look: CompanionLook): void
+  loadCozyCompanionImage(): Promise<void>
+  /** Opens a file dialog and, if you pick an image, makes it your companion. */
+  pickCozyCompanionImage(): Promise<void>
+  clearCozyCompanionImage(): Promise<void>
   setCozyScene(scene: SceneChoice): void
 }
 
@@ -100,6 +106,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   cozyMode: false,
   cozyCompanion: readStored(COZY_COMPANION_KEY, isCompanionId, 'girl'),
   cozyCompanionLook: readStored(COZY_LOOK_KEY, isCompanionLook, 'stylized'),
+  cozyCompanionImage: null,
   cozyScene: readStored(COZY_SCENE_KEY, isSceneChoice, 'auto'),
 
   async load() {
@@ -181,6 +188,35 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setCozyCompanion(companion) {
     set({ cozyCompanion: companion })
     writeStored(COZY_COMPANION_KEY, companion)
+  },
+
+  async loadCozyCompanionImage() {
+    try {
+      set({ cozyCompanionImage: await window.electronAPI.cozy.getCompanionImage() })
+    } catch {
+      // No picture to show; the other companions still work.
+    }
+  },
+
+  async pickCozyCompanionImage() {
+    try {
+      const url = await window.electronAPI.cozy.pickCompanionImage()
+      if (!url) return
+      set({ cozyCompanionImage: url })
+      get().setCozyCompanion('custom')
+    } catch (error) {
+      toast.error(`Couldn't use that picture: ${errorText(error)}`)
+    }
+  },
+
+  async clearCozyCompanionImage() {
+    try {
+      await window.electronAPI.cozy.clearCompanionImage()
+      set({ cozyCompanionImage: null })
+      if (get().cozyCompanion === 'custom') get().setCozyCompanion('girl')
+    } catch (error) {
+      toast.error(`Couldn't remove the picture: ${errorText(error)}`)
+    }
   },
 
   setCozyCompanionLook(look) {

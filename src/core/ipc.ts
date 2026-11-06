@@ -83,6 +83,9 @@ export const IpcChannels = {
 
   storageGetUsage: 'storage:get-usage',
   storageClearCache: 'storage:clear-cache',
+  cozyGetCompanionImage: 'cozy:get-companion-image',
+  cozyPickCompanionImage: 'cozy:pick-companion-image',
+  cozyClearCompanionImage: 'cozy:clear-companion-image',
 
   discoverGetCategories: 'discover:get-categories',
   discoverGetPlaylists: 'discover:get-playlists',
@@ -462,6 +465,13 @@ export interface ElectronAPI {
     getUsage(): Promise<StorageUsage>
     /** Empties the cache of player files and covers; it fills up again as you listen. */
     clearCache(): Promise<StorageUsage>
+  }
+  cozy: {
+    /** Where your own companion picture loads from, or null when there is none. */
+    getCompanionImage(): Promise<string | null>
+    /** Opens a file dialog; the new picture's URL, or null if cancelled. Rejects files that aren't images. */
+    pickCompanionImage(): Promise<string | null>
+    clearCompanionImage(): Promise<void>
   }
   discover: {
     getCategories(): Promise<DiscoverCategory[]>

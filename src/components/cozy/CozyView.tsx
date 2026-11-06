@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode, type WheelEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Expand, Palette, Pause, Play, Shrink, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from 'lucide-react'
+import { Expand, ImagePlus, Palette, Pause, Play, Shrink, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from 'lucide-react'
 import { artistLine, type UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { LikeButton } from '@/components/ui/LikeButton'
@@ -37,6 +37,8 @@ export function CozyView() {
   const setCozyMode = useSettingsStore((s) => s.setCozyMode)
   const companion = useSettingsStore((s) => s.cozyCompanion)
   const companionLook = useSettingsStore((s) => s.cozyCompanionLook)
+  const companionImage = useSettingsStore((s) => s.cozyCompanionImage)
+  const loadCompanionImage = useSettingsStore((s) => s.loadCozyCompanionImage)
   const setStageSlot = useEmbedLayoutStore((s) => s.setStageSlot)
   const embedActive = useEmbedActive()
   const playing = useAudioEngineStore((s) => s.transport.isPlaying)
@@ -51,6 +53,10 @@ export function CozyView() {
   useEffect(() => {
     pickerOpenRef.current = pickerOpen
   }, [pickerOpen])
+
+  useEffect(() => {
+    void loadCompanionImage()
+  }, [loadCompanionImage])
 
   const wake = (): void => {
     setAwake(true)
@@ -221,7 +227,12 @@ export function CozyView() {
                 look={companionLook}
                 playing={playing}
                 accent={scene.glow}
-                className="-mb-[2vmin] w-[clamp(80px,8.5vw,150px)] shrink-0 drop-shadow-[0_6px_18px_rgba(0,0,0,0.45)]"
+                imageUrl={companionImage}
+                className={cx(
+                  'shrink-0 drop-shadow-[0_6px_18px_rgba(0,0,0,0.45)]',
+                  // Your picture keeps its own shape: a fixed height, as wide as it needs (within reason).
+                  companion === 'custom' ? 'h-[clamp(110px,20vh,260px)] w-auto max-w-[26vw]' : '-mb-[2vmin] w-[clamp(80px,8.5vw,150px)]'
+                )}
               />
             )}
             <UpNext />
@@ -286,6 +297,9 @@ function ScenePicker({ scene, guess, onClose }: { scene: Scene; guess: SceneGues
   const setCompanion = useSettingsStore((s) => s.setCozyCompanion)
   const look = useSettingsStore((s) => s.cozyCompanionLook)
   const setLook = useSettingsStore((s) => s.setCozyCompanionLook)
+  const image = useSettingsStore((s) => s.cozyCompanionImage)
+  const pickImage = useSettingsStore((s) => s.pickCozyCompanionImage)
+  const clearImage = useSettingsStore((s) => s.clearCozyCompanionImage)
   const choice = useSettingsStore((s) => s.cozyScene)
   const setScene = useSettingsStore((s) => s.setCozyScene)
   const panel = useRef<HTMLDivElement>(null)
@@ -336,13 +350,15 @@ function ScenePicker({ scene, guess, onClose }: { scene: Scene; guess: SceneGues
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-6 gap-1">
+      <div className="grid grid-cols-4 gap-1">
         {COMPANIONS.map((option) => (
           <button
             key={option.id}
             type="button"
             aria-pressed={companion === option.id}
-            onClick={() => setCompanion(option.id)}
+            title={option.id === 'custom' && !image ? 'Choose a picture (PNG, GIF, WebP or JPEG)' : undefined}
+            // "Yours" asks for a picture the first time.
+            onClick={() => (option.id === 'custom' && !image ? void pickImage() : setCompanion(option.id))}
             className={cx(
               'flex flex-col items-center gap-1 rounded-xl px-1 pt-1.5 pb-1 text-[10.5px] text-white/70 transition duration-150 hover:bg-white/10 hover:text-white',
               companion === option.id && 'bg-white/15 text-white ring-1 ring-white/25'
@@ -351,14 +367,29 @@ function ScenePicker({ scene, guess, onClose }: { scene: Scene; guess: SceneGues
             <span className="flex size-10 items-center justify-center">
               {option.id === 'none' ? (
                 <X size={16} className="text-white/45" />
+              ) : option.id === 'custom' && !image ? (
+                <ImagePlus size={18} className="text-white/55" />
               ) : (
-                <Companion id={option.id} look={look} playing accent={scene.glow} className="size-10" />
+                <Companion id={option.id} look={look} playing accent={scene.glow} imageUrl={image} className="size-10" />
               )}
             </span>
             {option.label}
           </button>
         ))}
       </div>
+      {companion === 'custom' && image && (
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-white/[0.05] px-3 py-2 text-[11.5px] text-white/60">
+          Your own picture
+          <span className="flex gap-1">
+            <button type="button" onClick={() => void pickImage()} className="rounded-full px-2.5 py-1 font-medium text-white/80 hover:bg-white/10 hover:text-white">
+              Change…
+            </button>
+            <button type="button" onClick={() => void clearImage()} className="rounded-full px-2.5 py-1 font-medium text-white/80 hover:bg-white/10 hover:text-white">
+              Remove
+            </button>
+          </span>
+        </div>
+      )}
 
       <h2 className="mt-4 mb-2.5 text-[11px] font-semibold tracking-[0.2em] text-white/50 uppercase">Scene</h2>
       <div className="space-y-1">

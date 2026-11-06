@@ -115,6 +115,11 @@ const electronAPI: ElectronAPI = {
     getUsage: () => invoke(IpcChannels.storageGetUsage),
     clearCache: () => invoke(IpcChannels.storageClearCache)
   },
+  cozy: {
+    getCompanionImage: () => invoke(IpcChannels.cozyGetCompanionImage),
+    pickCompanionImage: () => invoke(IpcChannels.cozyPickCompanionImage),
+    clearCompanionImage: () => invoke(IpcChannels.cozyClearCompanionImage)
+  },
   discover: {
     getCategories: () => invoke(IpcChannels.discoverGetCategories),
     getPlaylists: (categoryId) => invoke(IpcChannels.discoverGetPlaylists, categoryId)

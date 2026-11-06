@@ -554,3 +554,23 @@
 .st-px-blink {
   animation: st-px-blink 5.2s steps(1, end) infinite;
 }
+
+/* Your own companion picture: a gentle sway while music plays, slow breathing while paused. */
+@keyframes st-img-sway {
+  from {
+    transform: translateY(0) rotate(-1.6deg);
+  }
+  to {
+    transform: translateY(-3px) rotate(1.6deg);
+  }
+}
+
+.st-img-sway {
+  transform-origin: 50% 100%;
+  animation: st-img-sway 0.9s ease-in-out infinite alternate;
+}
+
+.st-img-doze {
+  transform-origin: 50% 100%;
+  animation: st-doze 4.5s ease-in-out infinite;
+}
