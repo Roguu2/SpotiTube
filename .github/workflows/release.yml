@@ -2,11 +2,6 @@ name: Release
 
 # Builds installers for a v* tag and publishes them as a release of this repository, which
 # is also the update feed installed apps read. Uses the built-in GITHUB_TOKEN: no secrets needed.
-#
-# Bridge: SpotiTube up to 0.7.0 reads updates from Roguu2/SpotiTube-releases. While the
-# RELEASES_TOKEN secret (a fine-grained token with "Contents: Read and write" on that repo)
-# exists, each release is also copied there, so those installs update to a version that
-# reads from here. Once everyone is on 0.7.1 or newer, delete the secret and archive that repo.
 
 on:
   push:
@@ -119,31 +114,3 @@ jobs:
 
       - name: Publish
         run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
-
-  # See the bridge note at the top. Skips itself once the RELEASES_TOKEN secret is gone.
-  mirror-legacy-feed:
-    name: Copy to the old update feed
-    needs: publish
-    runs-on: ubuntu-latest
-    env:
-      LEGACY_REPO: Roguu2/SpotiTube-releases
-      LEGACY_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-    steps:
-      - name: Copy the release
-        run: |
-          if [ -z "$LEGACY_TOKEN" ]; then
-            echo "No RELEASES_TOKEN secret: the old feed is retired, nothing to copy."
-            exit 0
-          fi
-          mkdir assets
-          GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir assets
-          GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
-          printf '\n\n> SpotiTube now lives at https://github.com/%s — this version and later update from there.\n' "$GITHUB_REPOSITORY" >> notes.md
-          export GH_TOKEN="$LEGACY_TOKEN"
-          if gh release view "$GITHUB_REF_NAME" --repo "$LEGACY_REPO" > /dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" assets/* --repo "$LEGACY_REPO" --clobber
-            gh release edit "$GITHUB_REF_NAME" --repo "$LEGACY_REPO" --notes-file notes.md --draft=false --latest
-          else
-            gh release create "$GITHUB_REF_NAME" assets/* --repo "$LEGACY_REPO" --latest \
-              --title "SpotiTube ${GITHUB_REF_NAME#v}" --notes-file notes.md
-          fi

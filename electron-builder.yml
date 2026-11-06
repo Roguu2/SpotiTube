@@ -55,8 +55,8 @@ deb:
   artifactName: ${productName}-${version}-${arch}.${ext}
 
 # Installers and the update feed are this repository's releases (it's public, so apps
-# update without credentials). Up to 0.7.0 they lived in Roguu2/SpotiTube-releases; see
-# .github/workflows/release.yml for the bridge that moves those installs over.
+# update without credentials). Up to 0.7.1 they were also published to the now archived
+# Roguu2/SpotiTube-releases, which older installs read; its 0.7.1 moved them over here.
 publish:
   provider: github
   owner: Roguu2

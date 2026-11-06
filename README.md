@@ -348,11 +348,9 @@ git push --follow-tags
 
 Installed apps pick it up within hours, or immediately via **Settings → Updates → Check for updates**.
 
-> **Moving from the old releases repo.** Up to 0.7.0, installers and the update feed lived in
-> [SpotiTube-releases](https://github.com/Roguu2/SpotiTube-releases/releases), and those installs still look there.
-> While the `RELEASES_TOKEN` secret (a fine-grained token with *Contents: Read and write* on that repo) exists,
-> `release.yml` also copies each release there, so they update to a version that reads from this repo. Once
-> everyone is on 0.7.1 or newer, delete the secret and archive that repo.
+> Up to 0.7.1, releases were also published to the now archived
+> [SpotiTube-releases](https://github.com/Roguu2/SpotiTube-releases) repo, which older installs read. Its last
+> release (0.7.1) points them here, so they move over with their next update.
 
 #### In-app updates
 
