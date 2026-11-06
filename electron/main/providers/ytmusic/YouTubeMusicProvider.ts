@@ -125,10 +125,48 @@ export class YouTubeMusicProvider implements IMusicProvider {
     return [...tracks.values()].slice(0, MAX_TRACKS_PER_PLAYLIST)
   }
 
+  /**
+   * Songs and videos together: many creators (DJ mixes, covers, live sets) only upload videos,
+   * which a songs-only search never shows. Results interleave the two lists, and anything by
+   * an artist or channel whose name matches the query comes first.
+   */
   async searchTracks(query: string): Promise<UnifiedTrack[]> {
     const yt = await this.youtube.getAnonymous()
-    const results = await yt.music.search(query, { type: 'song' })
-    return collectListItems(results.contents).map((item) => listItemToTrack(item))
+    const [songs, videos] = await Promise.all([
+      yt.music.search(query, { type: 'song' }).then((r) => collectListItems(r.contents).map((item) => listItemToTrack(item))),
+      yt.music
+        .search(query, { type: 'video' })
+        .then((r) => collectListItems(r.contents).map((item) => listItemToTrack(item)))
+        .catch(() => [] as UnifiedTrack[])
+    ])
+
+    const merged: UnifiedTrack[] = []
+    const seen = new Set<string>()
+    for (let i = 0; i < Math.max(songs.length, videos.length); i++) {
+      for (const track of [songs[i], videos[i]]) {
+        if (track && !seen.has(track.id)) {
+          seen.add(track.id)
+          merged.push(track)
+        }
+      }
+    }
+
+    // "SpontanDJ" should find the channel "S P O N T A N": compare letters and digits only.
+    const squash = (text: string): string =>
+      text
+        .normalize('NFKD')
+        .replace(/\p{M}/gu, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, '')
+    const wanted = squash(query)
+    const byMatchingCreator = (track: UnifiedTrack): boolean =>
+      wanted.length >= 3 &&
+      track.artists.some((artist) => {
+        const name = squash(artist.name)
+        return name.length >= 3 && (name.includes(wanted) || wanted.includes(name))
+      })
+    // A stable sort: within each group the interleaved relevance order stays.
+    return [...merged.filter(byMatchingCreator), ...merged.filter((track) => !byMatchingCreator(track))]
   }
 
   /** Tracks YouTube Music would play after `videoId` (its radio / automix), excluding the seed itself. */
