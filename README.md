@@ -45,6 +45,10 @@
   SpotiTube is in the background (Settings).
 - **Discord status** — optionally show *Listening to SpotiTube* with the song, artist, cover, a progress bar and an
   *Open on Spotify / YouTube Music* button on your Discord profile (Settings; Discord must be running).
+- **Cozy mode** — a calm full-screen view for a second monitor (`Ctrl/Cmd + Shift + C` or the sofa button): the
+  cover over a slowly drifting backdrop, a big clock, the current lyric line and what's next. Controls and the cursor
+  fade away when the mouse rests; it lays itself out vertically on a portrait screen. `Esc` leaves fullscreen, then
+  cozy mode.
 - **Mini player** — shrink the window into a small always-on-top player (`Ctrl/Cmd + Shift + M` or the
   picture-in-picture button): compact (square video and the essentials) or larger with every control. YouTube's
   player stands in for the cover. It remembers where you put it and which size you like.
@@ -164,6 +168,7 @@ When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.
 | `Ctrl/Cmd + E` | Toggle the queue |
 | `Ctrl/Cmd + L` | Now playing & lyrics (`Esc` closes) |
 | `Ctrl/Cmd + Shift + M` | Mini player on / off |
+| `Ctrl/Cmd + Shift + C` | Cozy mode on / off |
 | `Ctrl/Cmd + ,` | Settings |
 
 

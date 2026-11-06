@@ -28,6 +28,7 @@ const GAP = 12
 const TITLEBAR_HEIGHT = 44
 const PLAYER_BAR_HEIGHT = 88
 const SIDEBAR_WIDTH = 256
+const SLOT_POLL_MS = 250
 
 export function useEmbedActive(): boolean {
   return useAudioEngineStore((s) => s.backend === 'embed' && s.transport.src !== null)
@@ -60,15 +61,27 @@ export function EmbedMiniPlayer() {
       setSlotRect(null)
       return
     }
-    const measure = (): void => setSlotRect(slot.getBoundingClientRect())
+    let last = ''
+    const measure = (): void => {
+      const rect = slot.getBoundingClientRect()
+      // Re-render only when the slot actually moved or resized.
+      const key = `${rect.left},${rect.top},${rect.width},${rect.height}`
+      if (key === last) return
+      last = key
+      setSlotRect(rect)
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(slot)
     observer.observe(document.body)
     window.addEventListener('resize', measure)
+    // Content around the slot can move it without resizing anything (a longer title, say),
+    // which no observer reports: a cheap position check catches that.
+    const poll = window.setInterval(measure, SLOT_POLL_MS)
     return () => {
       observer.disconnect()
       window.removeEventListener('resize', measure)
+      window.clearInterval(poll)
     }
   }, [slot])
 

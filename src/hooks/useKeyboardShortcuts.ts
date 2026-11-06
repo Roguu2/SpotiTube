@@ -16,7 +16,7 @@ function isTyping(el: HTMLElement | null): boolean {
 
 /**
  * Space play/pause · ←/→ seek 5 s · Ctrl+←/→ previous/next · ↑/↓ volume ·
- * M mute · Ctrl+F find/search · Ctrl+E queue · Ctrl+L lyrics · Ctrl+Shift+M mini player · Ctrl+, settings.
+ * M mute · Ctrl+F find/search · Ctrl+E queue · Ctrl+L lyrics · Ctrl+Shift+M mini player · Ctrl+Shift+C cozy mode · Ctrl+, settings.
  */
 export function useKeyboardShortcuts(): void {
   useEffect(() => {
@@ -42,14 +42,21 @@ export function useKeyboardShortcuts(): void {
         useSettingsStore.getState().toggleQueue()
         return
       }
+      if (mod && event.shiftKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault()
+        const settings = useSettingsStore.getState()
+        if (!settings.miniMode) void settings.setCozyMode(!settings.cozyMode)
+        return
+      }
       if (mod && event.shiftKey && event.key.toLowerCase() === 'm') {
         event.preventDefault()
         const settings = useSettingsStore.getState()
         void settings.setMiniMode(!settings.miniMode)
         return
       }
-      // The mini player has no queue drawer or Now playing view to open.
-      if (mod && useSettingsStore.getState().miniMode && ['l', 'e'].includes(event.key.toLowerCase())) {
+      // The mini player and cozy mode have no queue drawer or Now playing view to open.
+      const { miniMode, cozyMode } = useSettingsStore.getState()
+      if (mod && (miniMode || cozyMode) && ['l', 'e'].includes(event.key.toLowerCase())) {
         event.preventDefault()
         return
       }

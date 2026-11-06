@@ -15,6 +15,7 @@ import { ArtistView } from './components/library/ArtistView'
 import { PlayerBar } from './components/player/PlayerBar'
 import { EmbedMiniPlayer } from './components/player/EmbedMiniPlayer'
 import { MiniPlayer } from './components/player/MiniPlayer'
+import { CozyView } from './components/cozy/CozyView'
 import { QueuePanel } from './components/queue/QueuePanel'
 import { SettingsModal } from './components/settings/SettingsModal'
 import { NowPlayingView } from './components/nowplaying/NowPlayingView'
@@ -36,6 +37,7 @@ export function App() {
 
   const appInfo = useSettingsStore((s) => s.appInfo)
   const miniMode = useSettingsStore((s) => s.miniMode)
+  const cozyMode = useSettingsStore((s) => s.cozyMode)
   const smoothFades = useSettingsStore((s) => s.settings?.smoothFades ?? true)
   const view = useLibraryStore((s) => s.view)
   const mainRef = useRef<HTMLElement>(null)
@@ -55,7 +57,13 @@ export function App() {
   return (
     <div className="flex h-full flex-col bg-base">
       {/* One tree for both layouts: YouTube's player below must never remount (its iframe would reload). */}
-      {miniMode ? <MiniPlayer /> : <FullLayout platform={appInfo.platform} mainRef={mainRef} />}
+      {miniMode ? (
+        <MiniPlayer />
+      ) : cozyMode ? (
+        <CozyView />
+      ) : (
+        <FullLayout platform={appInfo.platform} mainRef={mainRef} />
+      )}
       <EmbedMiniPlayer />
       <SettingsModal />
       <Toasts />

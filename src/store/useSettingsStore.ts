@@ -37,6 +37,8 @@ interface SettingsState {
   /** The window is the small always-on-top player. */
   miniMode: boolean
   miniSize: MiniSize
+  /** The whole window as cozy mode (a calm screen for a second monitor). */
+  cozyMode: boolean
 
   load(): Promise<void>
   update(patch: AppSettingsPatch): Promise<void>
@@ -50,6 +52,7 @@ interface SettingsState {
   toggleNowPlaying(open?: boolean): void
   setMiniMode(enabled: boolean): Promise<void>
   setMiniSize(size: MiniSize): Promise<void>
+  setCozyMode(enabled: boolean): Promise<void>
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -62,6 +65,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   nowPlayingOpen: false,
   miniMode: false,
   miniSize: readMiniSize(),
+  cozyMode: false,
 
   async load() {
     const [appInfo, settings, auth] = await Promise.all([
@@ -126,8 +130,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   async setMiniMode(enabled) {
     // Switch the layout before the window shrinks, so the full layout is never squeezed into it.
-    if (enabled) set({ miniMode: true, nowPlayingOpen: false })
+    if (enabled) {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      set({ miniMode: true, nowPlayingOpen: false, cozyMode: false })
+    }
     set({ miniMode: await window.electronAPI.window.setMini(enabled, get().miniSize) })
+  },
+
+  async setCozyMode(enabled) {
+    if (enabled && get().miniMode) await get().setMiniMode(false)
+    if (!enabled && document.fullscreenElement) await document.exitFullscreen()
+    set({ cozyMode: enabled, nowPlayingOpen: false })
   },
 
   async setMiniSize(size) {

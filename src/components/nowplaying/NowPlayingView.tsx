@@ -51,8 +51,6 @@ export function NowPlayingView() {
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
 
-  // Hand the player back to its corner or dock when this view goes away.
-  useEffect(() => () => setStageSlot(null), [setStageSlot])
 
   return (
     <motion.section

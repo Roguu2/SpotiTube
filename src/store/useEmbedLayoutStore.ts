@@ -13,7 +13,11 @@ interface EmbedLayout {
 interface EmbedLayoutState extends EmbedLayout {
   /** The sidebar element the docked player is laid over (it is never re-parented: that would reload it). */
   dockSlot: HTMLElement | null
-  /** A full-size spot (the Now playing view) that takes precedence over the corner or dock. */
+  /**
+   * A full-size spot (Now playing, the mini player, cozy mode) that takes precedence over the corner
+   * or dock. Views claim and release it only through their slot element's ref callback: React
+   * releases the old one before the next view claims it, so views can hand over in one commit.
+   */
   stageSlot: HTMLElement | null
   setLayout(patch: Partial<EmbedLayout>): void
   cycleSize(): void

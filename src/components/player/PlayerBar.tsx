@@ -3,6 +3,7 @@ import {
   LoaderCircle,
   MicVocal,
   PictureInPicture2,
+  Sofa,
   Pause,
   Pin,
   Play,
@@ -166,6 +167,7 @@ function RightControls() {
   const nowPlayingOpen = useSettingsStore((s) => s.nowPlayingOpen)
   const toggleNowPlaying = useSettingsStore((s) => s.toggleNowPlaying)
   const setMiniMode = useSettingsStore((s) => s.setMiniMode)
+  const setCozyMode = useSettingsStore((s) => s.setCozyMode)
 
   return (
     <div className="flex items-center justify-end gap-2">
@@ -190,6 +192,9 @@ function RightControls() {
         )}
       </div>
 
+      <IconButton label="Cozy mode (Ctrl+Shift+C)" onClick={() => void setCozyMode(true)}>
+        <Sofa size={16} />
+      </IconButton>
       <IconButton label="Mini player (Ctrl+Shift+M)" onClick={() => void setMiniMode(true)}>
         <PictureInPicture2 size={16} />
       </IconButton>
