@@ -68,6 +68,7 @@ export const IpcChannels = {
   historySavePosition: 'history:save-position',
 
   lyricsGet: 'lyrics:get',
+  genresGet: 'genres:get',
 
   presenceUpdate: 'presence:update',
   mediaNotifyTrack: 'media:notify-track',
@@ -448,6 +449,8 @@ export interface ElectronAPI {
   lyrics: {
     /** `null` when no lyrics are known for the track. */
     get(track: UnifiedTrack): Promise<Lyrics | null>
+    /** An artist's genre tags from MusicBrainz, most agreed-on first; empty when unknown. */
+    genres(artist: string): Promise<string[]>
   }
   ytsync: {
     getStatus(): Promise<YtSyncStatus>

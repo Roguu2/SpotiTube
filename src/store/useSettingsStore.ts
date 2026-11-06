@@ -1,9 +1,32 @@
 import { create } from 'zustand'
 import type { AppInfo, AppSettings, AppSettingsPatch, AuthStatus, MiniSize } from '@core/ipc'
 import { toast } from './useToastStore'
+import { isCompanionId, isCompanionLook, type CompanionId, type CompanionLook } from '@/components/cozy/Companion'
+import { isSceneChoice, type SceneChoice } from '@/components/cozy/scenes'
 
 const QUEUE_KEY = 'spotitube.queueOpen'
 const MINI_SIZE_KEY = 'spotitube.miniSize'
+const COZY_COMPANION_KEY = 'spotitube.cozyCompanion'
+const COZY_SCENE_KEY = 'spotitube.cozyScene'
+const COZY_LOOK_KEY = 'spotitube.cozyCompanionLook'
+
+/** A remembered choice, or `fallback` when there is none, it's unknown, or storage is blocked. */
+function readStored<T extends string>(key: string, valid: (value: unknown) => value is T, fallback: T): T {
+  try {
+    const value = localStorage.getItem(key)
+    return valid(value) ? value : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function writeStored(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // A convenience only: the choice still holds for this session.
+  }
+}
 
 function readMiniSize(): MiniSize {
   try {
@@ -39,6 +62,12 @@ interface SettingsState {
   miniSize: MiniSize
   /** The whole window as cozy mode (a calm screen for a second monitor). */
   cozyMode: boolean
+  /** Who keeps you company in cozy mode's corner. */
+  cozyCompanion: CompanionId
+  /** Smooth and stylised, or pixel art. */
+  cozyCompanionLook: CompanionLook
+  /** Cozy mode's scene, or 'auto' to follow the genre of what's playing. */
+  cozyScene: SceneChoice
 
   load(): Promise<void>
   update(patch: AppSettingsPatch): Promise<void>
@@ -53,6 +82,9 @@ interface SettingsState {
   setMiniMode(enabled: boolean): Promise<void>
   setMiniSize(size: MiniSize): Promise<void>
   setCozyMode(enabled: boolean): Promise<void>
+  setCozyCompanion(companion: CompanionId): void
+  setCozyCompanionLook(look: CompanionLook): void
+  setCozyScene(scene: SceneChoice): void
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -66,6 +98,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   miniMode: false,
   miniSize: readMiniSize(),
   cozyMode: false,
+  cozyCompanion: readStored(COZY_COMPANION_KEY, isCompanionId, 'girl'),
+  cozyCompanionLook: readStored(COZY_LOOK_KEY, isCompanionLook, 'stylized'),
+  cozyScene: readStored(COZY_SCENE_KEY, isSceneChoice, 'auto'),
 
   async load() {
     const [appInfo, settings, auth] = await Promise.all([
@@ -141,6 +176,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (enabled && get().miniMode) await get().setMiniMode(false)
     if (!enabled && document.fullscreenElement) await document.exitFullscreen()
     set({ cozyMode: enabled, nowPlayingOpen: false })
+  },
+
+  setCozyCompanion(companion) {
+    set({ cozyCompanion: companion })
+    writeStored(COZY_COMPANION_KEY, companion)
+  },
+
+  setCozyCompanionLook(look) {
+    set({ cozyCompanionLook: look })
+    writeStored(COZY_LOOK_KEY, look)
+  },
+
+  setCozyScene(scene) {
+    set({ cozyScene: scene })
+    writeStored(COZY_SCENE_KEY, scene)
   },
 
   async setMiniSize(size) {

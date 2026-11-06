@@ -102,7 +102,8 @@ const electronAPI: ElectronAPI = {
     savePosition: (position, currentTime) => invoke(IpcChannels.historySavePosition, position, currentTime)
   },
   lyrics: {
-    get: (track) => invoke(IpcChannels.lyricsGet, track)
+    get: (track) => invoke(IpcChannels.lyricsGet, track),
+    genres: (artist) => invoke(IpcChannels.genresGet, artist)
   },
   ytsync: {
     getStatus: () => invoke(IpcChannels.ytsyncGetStatus),

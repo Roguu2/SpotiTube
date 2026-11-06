@@ -270,3 +270,287 @@
   animation-delay: var(--delay, 0s);
   will-change: transform, opacity;
 }
+
+/* ── Cozy scenes: rain, sparks, stars, petals ─────────────────────────── */
+
+@keyframes st-rain {
+  from {
+    transform: translate3d(0, -25vh, 0);
+  }
+  to {
+    transform: translate3d(0, 125vh, 0);
+  }
+}
+
+.st-rain {
+  animation: st-rain var(--t, 1s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform;
+}
+
+@keyframes st-spark {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.55;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(var(--dx, 0), var(--dy, -60vh), 0) scale(0.3);
+    opacity: 0;
+  }
+}
+
+.st-spark {
+  animation: st-spark var(--t, 8s) ease-out infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+
+@keyframes st-twinkle {
+  0%,
+  100% {
+    opacity: calc(var(--glow, 0.6) * 0.25);
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: var(--glow, 0.6);
+    transform: scale(1.15);
+  }
+}
+
+.st-twinkle {
+  animation: st-twinkle var(--t, 4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes st-petal {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  8%,
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(var(--dx, 120px), 112vh, 0) rotate(560deg);
+    opacity: 0;
+  }
+}
+
+.st-petal {
+  animation: st-petal var(--t, 18s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
+}
+
+/* ── Cozy companions ──────────────────────────────────────────────────── */
+
+/* Nodding along while music plays; the pivot is set per part with transform-origin. */
+@keyframes st-nod {
+  from {
+    transform: rotate(-4deg) translateY(0);
+  }
+  to {
+    transform: rotate(4deg) translateY(1.5px);
+  }
+}
+
+.st-nod {
+  transform-box: view-box;
+  animation: st-nod 0.9s ease-in-out infinite alternate;
+}
+
+/* Slow breathing while paused (asleep). */
+@keyframes st-doze {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.03);
+  }
+}
+
+.st-doze {
+  transform-box: view-box;
+  transform-origin: 60px 120px;
+  animation: st-doze 4.5s ease-in-out infinite;
+}
+
+@keyframes st-blink {
+  0%,
+  91%,
+  97%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.1);
+  }
+}
+
+.st-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: st-blink 5.2s ease-in-out infinite;
+}
+
+@keyframes st-swish {
+  from {
+    transform: rotate(-7deg);
+  }
+  to {
+    transform: rotate(9deg);
+  }
+}
+
+.st-swish {
+  transform-box: view-box;
+  animation: st-swish 2.6s ease-in-out infinite alternate;
+}
+
+.st-wag {
+  transform-box: view-box;
+  animation: st-swish 0.32s ease-in-out infinite alternate;
+}
+
+@keyframes st-zz {
+  0% {
+    transform: translate(0, 0) scale(0.7);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(12px, -30px) scale(1.15);
+    opacity: 0;
+  }
+}
+
+.st-zz {
+  transform-box: fill-box;
+  animation: st-zz 3.6s ease-out infinite;
+}
+
+@keyframes st-steam {
+  0% {
+    transform: translateY(6px) scaleX(0.9);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateY(-20px) scaleX(1.15);
+    opacity: 0;
+  }
+}
+
+.st-steam {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: st-steam 3.4s ease-out infinite;
+}
+
+/* The volume readout that appears while scrolling to change it. */
+@keyframes st-pop {
+  from {
+    transform: translate(-50%, -6px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* The juice girl's sip: the box rises to her lips and settles, in time with the nod. */
+@keyframes st-sip {
+  from {
+    transform: translateY(1.5px);
+  }
+  to {
+    transform: translateY(-1.5px);
+  }
+}
+
+.st-sip {
+  animation: st-sip 0.9s ease-in-out infinite alternate;
+}
+
+/* ── Pixel companions: one-pixel hops and frame swaps, no in-betweens ─── */
+
+@keyframes st-px-bob {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1px);
+  }
+}
+
+.st-px-bob {
+  animation: st-px-bob 0.9s steps(1, end) infinite;
+}
+
+.st-px-breathe {
+  animation: st-px-bob 3.6s steps(1, end) infinite;
+}
+
+/* Rises when the body dips: sipping from the straw. */
+.st-px-sip {
+  animation: st-px-bob 0.9s steps(1, end) infinite;
+  animation-delay: -0.45s;
+}
+
+@keyframes st-px-flip {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes st-px-flop {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.st-px-a {
+  animation: st-px-flip var(--px-t, 0.9s) steps(1, end) infinite;
+}
+
+.st-px-b {
+  animation: st-px-flop var(--px-t, 0.9s) steps(1, end) infinite;
+}
+
+@keyframes st-px-blink {
+  0% {
+    opacity: 0;
+  }
+  92% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 0;
+  }
+}
+
+.st-px-blink {
+  animation: st-px-blink 5.2s steps(1, end) infinite;
+}

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode, type WheelEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Expand, Pause, Play, Shrink, SkipBack, SkipForward, X } from 'lucide-react'
-import { artistLine } from '@core/types'
+import { Expand, Palette, Pause, Play, Shrink, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from 'lucide-react'
+import { artistLine, type UnifiedTrack } from '@core/types'
 import { Artwork } from '@/components/ui/Artwork'
 import { LikeButton } from '@/components/ui/LikeButton'
 import { EqualizerBars } from '@/components/ui/EqualizerBars'
+import { Slider } from '@/components/ui/Slider'
 import { Backdrop } from '@/components/nowplaying/Backdrop'
 import { useEmbedActive } from '@/components/player/EmbedMiniPlayer'
 import { usePlayerStore } from '@/store/usePlayerStore'
@@ -13,39 +14,59 @@ import { useSettingsStore } from '@/store/useSettingsStore'
 import { useEmbedLayoutStore } from '@/store/useEmbedLayoutStore'
 import { activeLineIndex, useLyricsStore } from '@/store/useLyricsStore'
 import { cx } from '@/lib/format'
+import { Atmosphere } from './Atmosphere'
+import { COMPANIONS, Companion } from './Companion'
+import { SCENE_LIST, SCENES, guessScene, type Scene, type SceneGuess } from './scenes'
 
 /** Controls and the cursor fade out after this long without the mouse moving. */
 const IDLE_MS = 3_000
+/** How much one notch of the mouse wheel changes the volume. */
+const WHEEL_STEP = 0.05
 
 /**
  * Cozy mode: the whole window as a calm, slow screen for a second monitor —
  * the cover (or YouTube's player, which must stay visible) over a drifting
- * backdrop, a big clock, the current lyric line and what plays next. Controls
- * appear only while the mouse moves. Lays itself out vertically on a portrait screen.
+ * backdrop, a big clock, the current lyric line and what plays next, with a
+ * little companion in the corner. The scene (light, colours, what drifts by)
+ * follows the genre of what's playing, or one you pick. Controls appear only
+ * while the mouse moves; the mouse wheel changes the volume. Lays itself out
+ * vertically on a portrait screen.
  */
 export function CozyView() {
   const current = usePlayerStore((s) => s.current)
   const setCozyMode = useSettingsStore((s) => s.setCozyMode)
+  const companion = useSettingsStore((s) => s.cozyCompanion)
+  const companionLook = useSettingsStore((s) => s.cozyCompanionLook)
   const setStageSlot = useEmbedLayoutStore((s) => s.setStageSlot)
   const embedActive = useEmbedActive()
   const playing = useAudioEngineStore((s) => s.transport.isPlaying)
+  const { scene, guess } = useCozyScene(current)
   const [awake, setAwake] = useState(true)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [fullscreen, setFullscreen] = useState(document.fullscreenElement !== null)
+  const [volumeShownAt, setVolumeShownAt] = useState<number | null>(null)
   const idleTimer = useRef<number | null>(null)
+  const pickerOpenRef = useRef(false)
+
+  useEffect(() => {
+    pickerOpenRef.current = pickerOpen
+  }, [pickerOpen])
 
   const wake = (): void => {
     setAwake(true)
     if (idleTimer.current !== null) window.clearTimeout(idleTimer.current)
-    idleTimer.current = window.setTimeout(() => setAwake(false), IDLE_MS)
+    // Stay awake while the picker is open: it would vanish under the pointer.
+    idleTimer.current = window.setTimeout(() => setAwake(pickerOpenRef.current), IDLE_MS)
   }
 
   useEffect(() => {
-    idleTimer.current = window.setTimeout(() => setAwake(false), IDLE_MS)
+    idleTimer.current = window.setTimeout(() => setAwake(pickerOpenRef.current), IDLE_MS)
     const onFullscreen = (): void => setFullscreen(document.fullscreenElement !== null)
-    // Esc leaves fullscreen first, then cozy mode. (Electron doesn't leave fullscreen on Esc by itself.)
+    // Esc closes the picker, then leaves fullscreen, then cozy mode. (Electron doesn't leave fullscreen on Esc by itself.)
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
-      if (document.fullscreenElement) void document.exitFullscreen()
+      if (pickerOpenRef.current) setPickerOpen(false)
+      else if (document.fullscreenElement) void document.exitFullscreen()
       else void setCozyMode(false)
     }
     document.addEventListener('fullscreenchange', onFullscreen)
@@ -57,40 +78,78 @@ export function CozyView() {
     }
   }, [setCozyMode])
 
+  // The volume readout fades away a moment after the last wheel notch.
+  useEffect(() => {
+    if (volumeShownAt === null) return
+    const timer = window.setTimeout(() => setVolumeShownAt(null), 1_200)
+    return () => window.clearTimeout(timer)
+  }, [volumeShownAt])
+
   const toggleFullscreen = (): void => {
     if (document.fullscreenElement) void document.exitFullscreen()
     else void document.documentElement.requestFullscreen()
+  }
+
+  const onWheel = (event: WheelEvent): void => {
+    // The picker scrolls on its own.
+    if ((event.target as HTMLElement).closest('[data-cozy-picker]')) return
+    const engine = useAudioEngineStore.getState()
+    if (!engine.hydrated || event.deltaY === 0) return
+    const from = engine.muted ? 0 : engine.volume
+    engine.setVolume(Math.min(1, Math.max(0, Math.round((from + (event.deltaY < 0 ? WHEEL_STEP : -WHEEL_STEP)) * 100) / 100)))
+    setVolumeShownAt(Date.now())
+    wake()
   }
 
   return (
     <div
       onMouseMove={wake}
       onMouseDown={wake}
+      onWheel={onWheel}
+      style={{ '--cozy-accent': scene.accent, '--cozy-glow': scene.glow } as CSSProperties}
       className={cx('relative isolate flex h-full flex-col overflow-hidden bg-black text-white select-none', !awake && 'cursor-none')}
     >
       <Backdrop artworkUrl={current?.artworkUrl} seed={current?.id ?? ''} />
       {/* A slow, breathing light and a vignette: opacity-only animation, cheap to run all evening. */}
       <div aria-hidden="true" className="st-breathe pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_45%,rgba(255,255,255,0.07),transparent_70%)]" />
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_50%_45%,transparent_40%,rgba(0,0,0,0.65)_100%)]" />
-      {/* Warm grade, like a lamp-lit room. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(170deg,rgba(255,196,140,0.10),rgba(255,140,80,0.08)_55%,rgba(120,60,30,0.18))] mix-blend-soft-light" />
-      <FairyLights />
+      {/* The scene's colour grade and what drifts through it, cross-fading when the scene changes. */}
+      <AnimatePresence>
+        <motion.div
+          key={scene.id}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.6, ease: 'easeInOut' }}
+        >
+          <div className="absolute inset-0 mix-blend-soft-light" style={{ background: scene.tint }} />
+          <Atmosphere scene={scene} />
+        </motion.div>
+      </AnimatePresence>
       <div aria-hidden="true" className="st-grain pointer-events-none absolute inset-0 z-40 opacity-[0.07]" />
 
       <header className="flex shrink-0 items-start justify-between px-[5vmin] pt-[4vmin]">
         <Clock />
         <div
           className={cx(
-            'flex items-center gap-1 transition-opacity duration-500',
+            'relative flex items-center gap-1 transition-opacity duration-500',
             awake ? 'opacity-100' : 'pointer-events-none opacity-0'
           )}
         >
+          <CozyButton label="Scene & companion" onClick={() => setPickerOpen((open) => !open)} active={pickerOpen}>
+            <Palette size={18} />
+          </CozyButton>
           <CozyButton label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
             {fullscreen ? <Shrink size={18} /> : <Expand size={18} />}
           </CozyButton>
           <CozyButton label="Leave cozy mode (Esc)" onClick={() => void setCozyMode(false)}>
             <X size={20} />
           </CozyButton>
+          <AnimatePresence>
+            {pickerOpen && <ScenePicker scene={scene} guess={guess} onClose={() => setPickerOpen(false)} />}
+          </AnimatePresence>
         </div>
       </header>
 
@@ -98,8 +157,12 @@ export function CozyView() {
         {current ? (
           <>
             <div className="relative shrink-0">
-              {/* Lamplight pooling under the picture. */}
-              <div aria-hidden="true" className="st-breathe pointer-events-none absolute -inset-[8%] -z-10 rounded-[40%] bg-[radial-gradient(closest-side,rgba(255,170,100,0.30),transparent)]" />
+              {/* The scene's light pooling under the picture. */}
+              <div
+                aria-hidden="true"
+                className="st-breathe pointer-events-none absolute -inset-[8%] -z-10 rounded-[40%] transition-[background] duration-[1.6s]"
+                style={{ background: `radial-gradient(closest-side, rgb(${scene.glow} / 0.30), transparent)` }}
+              />
               {embedActive ? (
                 <div
                   ref={setStageSlot}
@@ -125,11 +188,12 @@ export function CozyView() {
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
                 >
-                  <p className="mb-[1.6vmin] flex items-center gap-2 text-[clamp(10px,0.8vw,13px)] font-medium tracking-[0.32em] text-amber-100/55 uppercase portrait:justify-center">
-                    <span className="text-amber-200/70">
+                  <p className="mb-[1.6vmin] flex items-center gap-2 text-[clamp(10px,0.8vw,13px)] font-medium tracking-[0.32em] text-[rgb(var(--cozy-accent)/0.6)] uppercase portrait:justify-center">
+                    <span className="text-[rgb(var(--cozy-accent)/0.85)]">
                       <EqualizerBars playing={playing} />
                     </span>
                     Now playing
+                    {guess?.because && <span className="truncate opacity-75">· {guess.because}</span>}
                   </p>
                   <h1 className="st-soft line-clamp-2 font-cozy text-[clamp(32px,4.2vw,80px)] leading-[1.02] font-[420] tracking-[-0.01em] text-[#fff6ec]">
                     {current.title}
@@ -150,10 +214,21 @@ export function CozyView() {
 
       <footer className="relative shrink-0 px-[5vmin] pb-[4vmin]">
         <div className="flex items-end justify-between gap-6">
-          <UpNext />
+          <div className="flex min-w-0 items-end gap-[2.5vmin]">
+            {companion !== 'none' && (
+              <Companion
+                id={companion}
+                look={companionLook}
+                playing={playing}
+                accent={scene.glow}
+                className="-mb-[2vmin] w-[clamp(80px,8.5vw,150px)] shrink-0 drop-shadow-[0_6px_18px_rgba(0,0,0,0.45)]"
+              />
+            )}
+            <UpNext />
+          </div>
           <div
             className={cx(
-              'flex items-center gap-3 transition-opacity duration-500',
+              'flex shrink-0 items-center gap-3 transition-opacity duration-500',
               awake ? 'opacity-100' : 'pointer-events-none opacity-0'
             )}
           >
@@ -162,7 +237,182 @@ export function CozyView() {
         </div>
       </footer>
       <Progress />
+      <VolumeReadout shownAt={volumeShownAt} />
     </div>
+  )
+}
+
+/** Genres already looked up this session, by artist name. */
+const genreCache = new Map<string, string[]>()
+
+/**
+ * The scene for `track`: the one chosen in the picker, or one guessed from its
+ * artist's genres (looked up once per artist) and its title. While a new
+ * artist's genres are on their way the previous scene stays, so it doesn't flicker.
+ */
+function useCozyScene(track: UnifiedTrack | null): { scene: Scene; guess: SceneGuess | null } {
+  const choice = useSettingsStore((s) => s.cozyScene)
+  const [, refresh] = useReducer((n: number) => n + 1, 0)
+  const last = useRef<{ scene: Scene; guess: SceneGuess | null }>({ scene: SCENES.lamplight, guess: null })
+  const artist = track?.artists[0]?.name ?? ''
+
+  useEffect(() => {
+    if (choice !== 'auto' || !artist || genreCache.has(artist)) return
+    let live = true
+    window.electronAPI.lyrics
+      .genres(artist)
+      .catch(() => [] as string[])
+      .then((tags) => {
+        genreCache.set(artist, tags)
+        if (live) refresh()
+      })
+    return () => {
+      live = false
+    }
+  }, [artist, choice])
+
+  if (choice !== 'auto') return { scene: SCENES[choice], guess: null }
+  if (!track) return last.current
+  const tags = genreCache.get(artist)
+  if (!tags && artist) return last.current
+  const guess = guessScene(tags ?? [], track.title)
+  last.current = { scene: SCENES[guess.scene], guess }
+  return last.current
+}
+
+/** Picks the companion and the scene; "Auto" shows what it chose and why. */
+function ScenePicker({ scene, guess, onClose }: { scene: Scene; guess: SceneGuess | null; onClose: () => void }) {
+  const companion = useSettingsStore((s) => s.cozyCompanion)
+  const setCompanion = useSettingsStore((s) => s.setCozyCompanion)
+  const look = useSettingsStore((s) => s.cozyCompanionLook)
+  const setLook = useSettingsStore((s) => s.setCozyCompanionLook)
+  const choice = useSettingsStore((s) => s.cozyScene)
+  const setScene = useSettingsStore((s) => s.setCozyScene)
+  const panel = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onDown = (event: MouseEvent): void => {
+      const target = event.target as HTMLElement
+      if (!panel.current?.contains(target) && !target.closest('[aria-label="Scene & companion"]')) onClose()
+    }
+    window.addEventListener('mousedown', onDown)
+    return () => window.removeEventListener('mousedown', onDown)
+  }, [onClose])
+
+  const autoHint =
+    choice === 'auto' && guess
+      ? `By genre — now ${SCENES[guess.scene].label}${guess.because ? ` · ${guess.because}` : ''}`
+      : 'Follows the genre of what plays'
+
+  return (
+    <motion.div
+      ref={panel}
+      data-cozy-picker
+      role="dialog"
+      aria-label="Scene and companion"
+      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="absolute top-12 right-0 z-50 max-h-[calc(100vh-120px)] w-[320px] origin-top-right overflow-y-auto rounded-2xl border border-white/10 bg-black/55 p-4 text-left shadow-2xl shadow-black/60 backdrop-blur-xl"
+    >
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <h2 className="text-[11px] font-semibold tracking-[0.2em] text-white/50 uppercase">Companion</h2>
+        <div role="radiogroup" aria-label="Companion style" className="flex rounded-full bg-white/[0.07] p-0.5 text-[11px]">
+          {(['stylized', 'pixel'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={look === option}
+              onClick={() => setLook(option)}
+              className={cx(
+                'rounded-full px-2.5 py-1 font-medium text-white/60 transition duration-150 hover:text-white',
+                look === option && 'bg-white/20 text-white shadow-sm'
+              )}
+            >
+              {option === 'stylized' ? 'Stylized' : 'Pixel'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-6 gap-1">
+        {COMPANIONS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={companion === option.id}
+            onClick={() => setCompanion(option.id)}
+            className={cx(
+              'flex flex-col items-center gap-1 rounded-xl px-1 pt-1.5 pb-1 text-[10.5px] text-white/70 transition duration-150 hover:bg-white/10 hover:text-white',
+              companion === option.id && 'bg-white/15 text-white ring-1 ring-white/25'
+            )}
+          >
+            <span className="flex size-10 items-center justify-center">
+              {option.id === 'none' ? (
+                <X size={16} className="text-white/45" />
+              ) : (
+                <Companion id={option.id} look={look} playing accent={scene.glow} className="size-10" />
+              )}
+            </span>
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <h2 className="mt-4 mb-2.5 text-[11px] font-semibold tracking-[0.2em] text-white/50 uppercase">Scene</h2>
+      <div className="space-y-1">
+        <SceneOption selected={choice === 'auto'} onClick={() => setScene('auto')} swatch={scene} label="Auto" hint={autoHint} />
+        {SCENE_LIST.map((option) => (
+          <SceneOption
+            key={option.id}
+            selected={choice === option.id}
+            onClick={() => setScene(option.id)}
+            swatch={option}
+            label={option.label}
+            hint={option.hint}
+          />
+        ))}
+      </div>
+    </motion.div>
+  )
+}
+
+function SceneOption({
+  selected,
+  onClick,
+  swatch,
+  label,
+  hint
+}: {
+  selected: boolean
+  onClick: () => void
+  swatch: Scene
+  label: string
+  hint: string
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={cx(
+        'flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition duration-150 hover:bg-white/10',
+        selected && 'bg-white/15 ring-1 ring-white/25'
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="size-7 shrink-0 rounded-full ring-1 ring-white/20"
+        style={{
+          background: `radial-gradient(circle at 35% 35%, rgb(${swatch.accent}), rgb(${swatch.glow}) 55%, rgb(${swatch.glow2 ?? swatch.glow} / 0.6))`
+        }}
+      />
+      <span className="min-w-0">
+        <span className="block text-[13px] font-semibold text-white">{label}</span>
+        <span className="block truncate text-[11.5px] text-white/50">{hint}</span>
+      </span>
+    </button>
   )
 }
 
@@ -185,7 +435,7 @@ function Clock() {
 
   return (
     <div className="drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)]">
-      <div className="st-soft mb-[0.6vmin] font-cozy text-[clamp(15px,1.4vw,24px)] text-amber-100/70 italic">{greeting}</div>
+      <div className="st-soft mb-[0.6vmin] font-cozy text-[clamp(15px,1.4vw,24px)] text-[rgb(var(--cozy-accent)/0.75)] italic">{greeting}</div>
       <div className="st-soft font-cozy text-[clamp(44px,7vw,132px)] leading-[0.95] font-[300] tracking-[-0.02em] text-[#fff6ec] tabular-nums">
         {now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
       </div>
@@ -212,7 +462,7 @@ function LyricLine() {
   if (!lines || index < 0) return null
   const text = lines[index].text || '♪'
   return (
-    <div className="st-soft mt-[4.5vmin] min-h-[3.2em] font-cozy text-[clamp(19px,2vw,34px)] leading-snug font-[350] text-amber-50/85 italic">
+    <div className="st-soft mt-[4.5vmin] min-h-[3.2em] font-cozy text-[clamp(19px,2vw,34px)] leading-snug font-[350] text-[rgb(var(--cozy-accent)/0.9)] italic">
       <AnimatePresence mode="wait">
         <motion.p
           key={`${index}-${text}`}
@@ -233,7 +483,7 @@ function UpNext() {
   const next = usePlayerStore((s) => s.queue[s.order[s.position + 1]])
   if (!next) return <span />
   return (
-    <div className="min-w-0 text-[clamp(12px,1vw,16px)] text-white/50">
+    <div className="min-w-0 truncate text-[clamp(12px,1vw,16px)] text-white/50">
       <span className="tracking-[0.2em] uppercase">Up next</span>
       <span className="mx-2">·</span>
       <span className="text-white/75">{next.title}</span>
@@ -267,7 +517,73 @@ function Controls() {
       <CozyButton label="Next" onClick={() => void next()}>
         <SkipForward size={20} fill="currentColor" />
       </CozyButton>
+      <span aria-hidden="true" className="mx-1 h-6 w-px bg-white/15" />
+      <CozyVolume />
     </>
+  )
+}
+
+function volumeIcon(volume: number, muted: boolean, size: number): ReactNode {
+  if (muted || volume === 0) return <VolumeX size={size} />
+  return volume < 0.5 ? <Volume1 size={size} /> : <Volume2 size={size} />
+}
+
+/** Mute and a volume slider, in the scene's colour. The mouse wheel anywhere does the same. */
+function CozyVolume() {
+  const volume = useAudioEngineStore((s) => s.volume)
+  const muted = useAudioEngineStore((s) => s.muted)
+  const hydrated = useAudioEngineStore((s) => s.hydrated)
+  const setVolume = useAudioEngineStore((s) => s.setVolume)
+  const toggleMute = useAudioEngineStore((s) => s.toggleMute)
+  const shown = muted ? 0 : volume
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <CozyButton label={muted ? 'Unmute (M)' : 'Mute (M)'} onClick={toggleMute}>
+        {volumeIcon(volume, muted, 19)}
+      </CozyButton>
+      <div className="w-[clamp(84px,7vw,130px)]">
+        <Slider
+          label="Volume"
+          min={0}
+          max={1}
+          step={0.01}
+          value={shown}
+          onChange={setVolume}
+          disabled={!hydrated}
+          accent="rgb(var(--cozy-accent))"
+          valueText={`${Math.round(shown * 100)}%`}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** A small "volume 45%" pill at the top while the mouse wheel changes the volume. */
+function VolumeReadout({ shownAt }: { shownAt: number | null }) {
+  const volume = useAudioEngineStore((s) => (s.muted ? 0 : s.volume))
+  return (
+    <AnimatePresence>
+      {shownAt !== null && (
+        <motion.div
+          role="status"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18 }}
+          className="pointer-events-none absolute top-[4vmin] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-black/45 px-4 py-2 text-[13px] text-white/90 shadow-xl shadow-black/40 backdrop-blur-md"
+        >
+          {volumeIcon(volume, false, 16)}
+          <span className="h-1 w-28 overflow-hidden rounded-full bg-white/15">
+            <span
+              className="block h-full origin-left rounded-full bg-[rgb(var(--cozy-accent))] transition-transform duration-150"
+              style={{ transform: `scaleX(${volume})` }}
+            />
+          </span>
+          <span className="w-9 text-right tabular-nums">{Math.round(volume * 100)}%</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -284,55 +600,19 @@ function Progress() {
   )
 }
 
-function CozyButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+function CozyButton({ label, onClick, active = false, children }: { label: string; onClick: () => void; active?: boolean; children: ReactNode }) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex size-10 items-center justify-center rounded-full text-white/70 transition duration-150 ease-out hover:scale-110 hover:bg-white/10 hover:text-white active:scale-90"
+      className={cx(
+        'flex size-10 items-center justify-center rounded-full text-white/70 transition duration-150 ease-out hover:scale-110 hover:bg-white/10 hover:text-white active:scale-90',
+        active && 'bg-white/15 text-white'
+      )}
     >
       {children}
     </button>
-  )
-}
-
-/** Positions, sizes and timings of the drifting lights: fixed, so the scene is the same every time. */
-const LIGHTS = [
-  { left: '8%', top: '78%', size: 220, t: 34, delay: 0, dx: '40px', dy: '-260px', glow: 0.45 },
-  { left: '22%', top: '88%', size: 120, t: 26, delay: -9, dx: '-30px', dy: '-220px', glow: 0.55 },
-  { left: '41%', top: '92%', size: 180, t: 40, delay: -20, dx: '20px', dy: '-300px', glow: 0.35 },
-  { left: '58%', top: '84%', size: 90, t: 22, delay: -4, dx: '-20px', dy: '-200px', glow: 0.6 },
-  { left: '71%', top: '90%', size: 260, t: 46, delay: -30, dx: '50px', dy: '-280px', glow: 0.3 },
-  { left: '86%', top: '76%', size: 140, t: 30, delay: -15, dx: '-40px', dy: '-240px', glow: 0.5 },
-  { left: '93%', top: '30%', size: 110, t: 38, delay: -25, dx: '-30px', dy: '-160px', glow: 0.35 },
-  { left: '3%', top: '35%', size: 150, t: 42, delay: -12, dx: '30px', dy: '-180px', glow: 0.3 }
-]
-
-/** Soft, out-of-focus lights rising slowly, like fairy lights behind the music. */
-function FairyLights() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      {LIGHTS.map((light) => (
-        <span
-          key={light.left + light.top}
-          className="st-bokeh absolute rounded-full bg-[radial-gradient(closest-side,rgba(255,206,150,0.55),rgba(255,170,100,0.18)_55%,transparent)]"
-          style={
-            {
-              left: light.left,
-              top: light.top,
-              width: light.size,
-              height: light.size,
-              '--t': light.t + 's',
-              '--delay': light.delay + 's',
-              '--dx': light.dx,
-              '--dy': light.dy,
-              '--glow': light.glow
-            } as CSSProperties
-          }
-        />
-      ))}
-    </div>
   )
 }
