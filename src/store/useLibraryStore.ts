@@ -107,16 +107,18 @@ function sameView(a: View, b: View): boolean {
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => {
+  // Results only ever update the results: the text in the box is the user's, and it may have moved on
+  // (more letters, a trailing space) while this search was out.
   const runSearch = async (query: string): Promise<void> => {
     const token = ++searchToken
-    set({ search: { ...get().search, loading: true } })
+    set((s) => ({ search: { ...s.search, loading: true } }))
     try {
       const results = await window.electronAPI.library.search(query)
       if (token !== searchToken) return
-      set({ search: { query, loading: false, results } })
+      set((s) => ({ search: { ...s.search, loading: false, results } }))
     } catch (error) {
       if (token !== searchToken) return
-      set({ search: { query, loading: false, results: null } })
+      set((s) => ({ search: { ...s.search, loading: false, results: null } }))
       toast.error(`Search failed: ${errorText(error)}`)
     }
   }
@@ -215,6 +217,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => {
     },
 
     setSearchQuery(query) {
+      // Every keystroke retires the search still in flight; the results on screen stay until the next one lands.
+      searchToken++
       set({ search: { ...get().search, query } })
       if (searchTimer !== null) window.clearTimeout(searchTimer)
       if (!query.trim()) {
