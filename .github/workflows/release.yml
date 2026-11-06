@@ -1,10 +1,12 @@
 name: Release
 
-# Builds installers for a v* tag and publishes them to the public releases repository,
-# which is also the update feed installed apps read. Source stays in this private repo.
+# Builds installers for a v* tag and publishes them as a release of this repository, which
+# is also the update feed installed apps read. Uses the built-in GITHUB_TOKEN: no secrets needed.
 #
-# Requires the RELEASES_TOKEN secret: a fine-grained personal access token with
-# "Contents: Read and write" on the releases repository only.
+# Bridge: SpotiTube up to 0.7.0 reads updates from Roguu2/SpotiTube-releases. While the
+# RELEASES_TOKEN secret (a fine-grained token with "Contents: Read and write" on that repo)
+# exists, each release is also copied there, so those installs update to a version that
+# reads from here. Once everyone is on 0.7.1 or newer, delete the secret and archive that repo.
 
 on:
   push:
@@ -12,10 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-
-env:
-  RELEASES_REPO: Roguu2/SpotiTube-releases
+  contents: write
 
 jobs:
   # Create the draft once, up front. When each platform job created its own,
@@ -25,15 +24,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Check release token
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::Missing RELEASES_TOKEN secret (fine-grained PAT with Contents: Read and write on $RELEASES_REPO)"
-            exit 1
-          fi
-
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -48,7 +40,6 @@ jobs:
             exit 1
           fi
 
-      # The releases repo has no source history, so notes come from this repo's commits.
       - name: Write release notes
         run: |
           previous=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
@@ -62,10 +53,10 @@ jobs:
 
       - name: Create draft release
         run: |
-          if gh release view "$GITHUB_REF_NAME" --repo "$RELEASES_REPO" > /dev/null 2>&1; then
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists"
           else
-            gh release create "$GITHUB_REF_NAME" --repo "$RELEASES_REPO" --draft \
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
               --title "SpotiTube ${GITHUB_REF_NAME#v}" --notes-file notes.md
           fi
 
@@ -87,7 +78,7 @@ jobs:
             target: --linux
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: false
-      GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v5
 
@@ -111,14 +102,15 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Verify assets
         run: |
           version="${GITHUB_REF_NAME#v}"
-          assets=$(gh release view "$GITHUB_REF_NAME" --repo "$RELEASES_REPO" --json assets --jq '.assets[].name')
+          assets=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
           echo "$assets"
-          for required in latest.yml latest-mac.yml latest-linux.yml "SpotiTube-$version-Setup.exe"             "SpotiTube-$version-universal.dmg" "SpotiTube-$version-x86_64.AppImage" "SpotiTube-$version-amd64.deb"; do
+          for required in latest.yml latest-mac.yml latest-linux.yml "SpotiTube-$version-Setup.exe" \
+            "SpotiTube-$version-universal.dmg" "SpotiTube-$version-x86_64.AppImage" "SpotiTube-$version-amd64.deb"; do
             if ! grep -qx "$required" <<< "$assets"; then
               echo "::error::Release is missing $required — leaving it as a draft"
               exit 1
@@ -126,4 +118,32 @@ jobs:
           done
 
       - name: Publish
-        run: gh release edit "$GITHUB_REF_NAME" --repo "$RELEASES_REPO" --draft=false --latest
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+  # See the bridge note at the top. Skips itself once the RELEASES_TOKEN secret is gone.
+  mirror-legacy-feed:
+    name: Copy to the old update feed
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      LEGACY_REPO: Roguu2/SpotiTube-releases
+      LEGACY_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+    steps:
+      - name: Copy the release
+        run: |
+          if [ -z "$LEGACY_TOKEN" ]; then
+            echo "No RELEASES_TOKEN secret: the old feed is retired, nothing to copy."
+            exit 0
+          fi
+          mkdir assets
+          GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir assets
+          GH_TOKEN="${{ secrets.GITHUB_TOKEN }}" gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          printf '\n\n> SpotiTube now lives at https://github.com/%s — this version and later update from there.\n' "$GITHUB_REPOSITORY" >> notes.md
+          export GH_TOKEN="$LEGACY_TOKEN"
+          if gh release view "$GITHUB_REF_NAME" --repo "$LEGACY_REPO" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" assets/* --repo "$LEGACY_REPO" --clobber
+            gh release edit "$GITHUB_REF_NAME" --repo "$LEGACY_REPO" --notes-file notes.md --draft=false --latest
+          else
+            gh release create "$GITHUB_REF_NAME" assets/* --repo "$LEGACY_REPO" --latest \
+              --title "SpotiTube ${GITHUB_REF_NAME#v}" --notes-file notes.md
+          fi

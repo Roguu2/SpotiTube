@@ -54,10 +54,11 @@ appImage:
 deb:
   artifactName: ${productName}-${version}-${arch}.${ext}
 
-# Source is private; installers and the update feed live in a public repo so
-# installed apps can update without credentials.
+# Installers and the update feed are this repository's releases (it's public, so apps
+# update without credentials). Up to 0.7.0 they lived in Roguu2/SpotiTube-releases; see
+# .github/workflows/release.yml for the bridge that moves those installs over.
 publish:
   provider: github
   owner: Roguu2
-  repo: SpotiTube-releases
+  repo: SpotiTube
   releaseType: draft

@@ -13,7 +13,7 @@ const CHECK_INTERVAL_MS = 4 * 60 * 60_000
 /** After a failed check, try again sooner than the regular interval. */
 const RETRY_AFTER_ERROR_MS = 15 * 60_000
 const RELEASES_OWNER = 'Roguu2'
-const RELEASES_REPO = 'SpotiTube-releases'
+const RELEASES_REPO = 'SpotiTube'
 const RELEASES_URL = `https://github.com/${RELEASES_OWNER}/${RELEASES_REPO}/releases/latest`
 
 /**

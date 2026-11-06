@@ -1,20 +1,94 @@
 <p align="center">
-  <img src="build/icon.png" width="96" alt="SpotiTube icon" />
+  <img src="build/icon.png" width="104" alt="SpotiTube" />
 </p>
 
 <h1 align="center">SpotiTube</h1>
 
 <p align="center">
-  One desktop player for <b>Spotify</b> and <b>YouTube Music</b> — with a queue you control.<br/>
-  Electron · React 19 · TypeScript
+  <b>All your music in one simple player: your Spotify playlists and YouTube Music, side by side.</b><br/>
+  Free, no ads, no account of its own.
 </p>
 
-![Unified library with the queue open](docs/screenshots/library.png)
+<p align="center">
+  <a href="https://github.com/Roguu2/SpotiTube/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Roguu2/SpotiTube?label=latest&color=1DB954&style=for-the-badge"></a>
+  <a href="https://github.com/Roguu2/SpotiTube/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Roguu2/SpotiTube/total?color=FF0033&style=for-the-badge"></a>
+  <img alt="Windows, macOS and Linux" src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-18181d?style=for-the-badge">
+</p>
 
-## Features
+<p align="center">
+  <a href="https://github.com/Roguu2/SpotiTube/releases/latest"><b>⬇ Windows</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/Roguu2/SpotiTube/releases/latest"><b>⬇ macOS</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/Roguu2/SpotiTube/releases/latest"><b>⬇ Linux</b></a>
+</p>
 
-- **Unified library** — Spotify and YouTube Music playlists in one view, every card, sidebar item and track row
-  colour-badged by source (Spotify green, YT Music red, Hybrid gradient). Filter tabs: **All**, **Spotify only**,
+![SpotiTube with Spotify and YouTube Music playlists and the queue open](docs/screenshots/library.png)
+
+Your playlists live in two apps. SpotiTube brings them into **one window**, so you can listen to everything without
+switching back and forth. Pick a song, line up what comes next, discover something new, or just let it play.
+It works straight away with sample playlists, and you can connect your own accounts whenever you like.
+
+## What you can do
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🎧 Everything in one place</h3>
+      Spotify and YouTube Music playlists side by side, one search for both, and your own mixed playlists with songs
+      from either service.
+    </td>
+    <td width="50%" valign="top">
+      <h3>📋 You decide what's next</h3>
+      Queue songs, reorder them by dragging, and when the queue runs out SpotiTube keeps going with music like what you
+      just heard. Start a radio from any song.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>✨ Find something new</h3>
+      Not sure what to play? <b>Discover</b> picks a playlist for your mood (chill, party, workout…) or favourite genre.
+      Open any album or artist with one click.
+    </td>
+    <td width="50%" valign="top">
+      <h3>🎤 Sing along</h3>
+      Full-screen <b>Now playing</b> with lyrics that follow the song, line by line. Click a line to jump there.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🛋️ Cozy mode</h3>
+      A calm, warm full-screen view with a big clock and the current lyric: perfect on a second screen or in the
+      background while you work or relax.
+    </td>
+    <td width="50%" valign="top">
+      <h3>🪟 Small when you need it</h3>
+      Shrink SpotiTube into a tiny always-on-top player, control it from the taskbar or your keyboard's media keys, and
+      set a sleep timer for the evening.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>❤️ Likes that follow you</h3>
+      Heart a song to keep it in <b>Liked songs</b>, and on Spotify or YouTube Music too when your account is connected.
+    </td>
+    <td width="50%" valign="top">
+      <h3>💻 On all your computers</h3>
+      Windows, macOS and Linux. Optionally keep your playlists in your YouTube Music account, so every computer, and
+      the YouTube Music app on your phone, has them. Updates install themselves.
+    </td>
+  </tr>
+</table>
+
+| Spotify and YouTube Music side by side | Mixed playlists | Your queue |
+| --- | --- | --- |
+| ![Spotify and YouTube Music playlists in parallel columns](docs/screenshots/split-view.png) | ![Adding a song to a mixed playlist](docs/screenshots/hybrid-playlists.png) | ![The queue with upcoming songs](docs/screenshots/queue.png) |
+
+<details>
+<summary><b>Every feature, in detail</b></summary>
+
+- **Unified library** — Spotify and YouTube Music playlists in one view, each playlist badged by where it comes
+  from (Spotify green, YT Music red, Hybrid gradient). Filter tabs: **All**, **Spotify only**,
   **YT Music only** and **Split view** (both catalogs in parallel columns).
 - **Likes** — the heart in the player bar, Now playing and the mini player saves songs to a **Liked songs** playlist
   (it syncs like any hybrid playlist) and, when the account is connected, to Spotify's Liked Songs or your YouTube
@@ -71,13 +145,107 @@
 - **Works out of the box** — sample Spotify and YouTube Music playlists stream real recordings before you connect any
   account; a built-in synthesizer covers the case where no stream can be resolved (e.g. offline).
 
-| Split view | Queue |
+</details>
+
+## Get started
+
+1. **Download** the installer for your computer from the [latest release](https://github.com/Roguu2/SpotiTube/releases/latest):
+   - **Windows 10/11:** `SpotiTube-<version>-Setup.exe`
+   - **macOS 12+** (Intel and Apple Silicon): `SpotiTube-<version>-universal.dmg`
+   - **Linux:** `SpotiTube-<version>-x86_64.AppImage` (any distribution) or `SpotiTube-<version>-amd64.deb`
+     (Ubuntu, Debian and friends)
+2. **Install and open it.** Sample playlists are ready to play straight away, no account needed.
+3. **Connect your accounts** in **Settings** (whenever you want) to see your own playlists:
+   - **YouTube Music:** search and playback work without an account. To load your own playlists and likes, paste a
+     cookie from your signed-in browser; SpotiTube shows you where to find it.
+   - **Spotify:** create a free app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+     and add your Spotify account under **User Management**, then paste the app's Client ID in Settings and click
+     **Connect**. Spotify Premium isn't needed. [Step-by-step guide](#spotify)
+
+> The installers aren't code-signed yet, so your computer may ask once whether to trust them:
+> - **Windows:** SmartScreen → **More info** → **Run anyway**.
+> - **macOS:** right-click the app → **Open**, then **Open** again.
+> - **Linux (AppImage):** make the file executable (right-click → Properties, or `chmod +x`), then open it.
+
+## FAQ
+
+<details>
+<summary><b>Is it free?</b></summary>
+
+Yes. SpotiTube is free, with no ads and no account of its own.
+</details>
+
+<details>
+<summary><b>Do I need Spotify Premium?</b></summary>
+
+No. Spotify provides your playlists and song details; the music itself plays from YouTube Music, because Spotify
+doesn't let other apps stream full songs.
+</details>
+
+<details>
+<summary><b>Where does the music come from?</b></summary>
+
+From YouTube Music. Each Spotify song is matched to the best YouTube Music version automatically: same song, same
+artist, same length, and no covers or remixes unless you ask for one. You can always pick a different version, and if
+a version won't play, SpotiTube switches to another one on its own.
+</details>
+
+<details>
+<summary><b>Why is there a small YouTube player?</b></summary>
+
+YouTube currently doesn't let apps stream complete songs directly, so SpotiTube plays them through YouTube's official
+player, which never cuts out. YouTube requires that player to stay visible, but you can make it small, move it to any
+corner or dock it in the sidebar. SpotiTube doesn't try to get around YouTube's protections.
+</details>
+
+<details>
+<summary><b>What happens to my data?</b></summary>
+
+Everything stays on your computer. Your Spotify login and YouTube Music cookie are encrypted with your system's
+keychain and only ever sent to Spotify and YouTube. SpotiTube has no servers and collects no analytics. If you turn on
+playlist sync, your SpotiTube playlists are stored as private playlists in your own YouTube Music account.
+</details>
+
+<details>
+<summary><b>How do updates work?</b></summary>
+
+SpotiTube checks for new versions, downloads them in the background and offers **Restart to update**. You can also
+check any time in **Settings → Updates**. On macOS, automatic installation needs a signed build; until then the app
+links you to the new download instead.
+</details>
+
+<details>
+<summary><b>Something doesn't play or sounds wrong.</b></summary>
+
+Open the **queue** and use **Change version** under the playing song to pick another one; SpotiTube remembers your
+choice. If a problem persists, please [open an issue](https://github.com/Roguu2/SpotiTube/issues).
+</details>
+
+## Keyboard shortcuts
+
+| Keys | Action |
 | --- | --- |
-| ![Split view](docs/screenshots/split-view.png) | ![Queue](docs/screenshots/queue.png) |
+| `Space` | Play / pause |
+| `←` / `→` | Seek −5 s / +5 s |
+| `Ctrl/Cmd + ←` / `→` | Previous / next song |
+| `↑` / `↓` | Volume up / down |
+| `M` | Mute |
+| `Ctrl/Cmd + F` | Find in the open playlist, otherwise Search |
+| `Ctrl/Cmd + E` | Show or hide the queue |
+| `Ctrl/Cmd + L` | Now playing & lyrics (`Esc` closes) |
+| `Ctrl/Cmd + Shift + M` | Mini player on / off |
+| `Ctrl/Cmd + Shift + C` | Cozy mode on / off |
+| `Ctrl/Cmd + ,` | Settings |
 
-## Getting started
+---
 
-**Requirements:** Node.js 22.12+ (24 LTS recommended) and npm. Windows 10/11, macOS 12+ or a 64-bit Linux desktop for running the app.
+## For developers
+
+SpotiTube is built with Electron, React 19 and TypeScript.
+
+### Build from source
+
+**Requirements:** Node.js 22.12+ (24 LTS recommended) and npm.
 
 ```bash
 git clone https://github.com/Roguu2/SpotiTube.git
@@ -90,7 +258,7 @@ npm run dev
 > downloads its binary on install) and `electron-winstaller`. If you upgrade Electron and `npm run dev` reports a
 > missing binary, run `npm install-scripts approve electron`.
 
-### Scripts
+#### Scripts
 
 | Command | What it does |
 | --- | --- |
@@ -103,11 +271,11 @@ npm run dev
 | `npm run build:unpack` | Build and package without an installer (quick local check) |
 | `npm run icon` | Regenerate `build/icon.png` from `scripts/generate-icon.mjs` |
 
-## Connecting your accounts
+### Connecting your accounts
 
 Open **Settings** (gear icon in the sidebar, or `Ctrl/Cmd + ,`).
 
-### Spotify
+#### Spotify
 
 SpotiTube uses the Authorization Code flow with **PKCE**, so you only need a client ID — no secret.
 
@@ -122,7 +290,7 @@ the Spotify account you sign in with.
 Spotify provides the catalog, playlists and metadata. Audio always comes from YouTube Music, because Spotify does
 not offer full-track streams to third-party apps.
 
-### YouTube Music
+#### YouTube Music
 
 Search, public playlists and streaming work without signing in. To load **your** library and Liked Music:
 
@@ -134,7 +302,7 @@ Search, public playlists and streaming work without signing in. To load **your**
 The cookie must contain `SAPISID` / `__Secure-3PAPISID`. If YouTube signs you out of that browser session, reconnect
 with a fresh cookie.
 
-## How playback works
+### How playback works
 
 Spotify does not offer full-track audio to third-party apps, so every track is played from YouTube Music. SpotiTube
 picks one of two modes per track, automatically:
@@ -150,49 +318,23 @@ whether complete streams are available and otherwise uses the official player, s
 instead of going silent. If a direct stream is cut off mid-song, playback continues in the official player at the
 same position.
 
-### Optional: yt-dlp
+#### Optional: yt-dlp
 
 When the built-in extraction via [YouTube.js](https://github.com/LuanRT/YouTube.js) fails outright, SpotiTube can use
 [yt-dlp](https://github.com/yt-dlp/yt-dlp) if it is installed on your `PATH` or configured in Settings.
 
-## Keyboard shortcuts
-
-| Keys | Action |
-| --- | --- |
-| `Space` | Play / pause |
-| `←` / `→` | Seek −5 s / +5 s |
-| `Ctrl/Cmd + ←` / `→` | Previous / next track |
-| `↑` / `↓` | Volume up / down |
-| `M` | Mute |
-| `Ctrl/Cmd + F` | Find in the open playlist, otherwise Search |
-| `Ctrl/Cmd + E` | Toggle the queue |
-| `Ctrl/Cmd + L` | Now playing & lyrics (`Esc` closes) |
-| `Ctrl/Cmd + Shift + M` | Mini player on / off |
-| `Ctrl/Cmd + Shift + C` | Cozy mode on / off |
-| `Ctrl/Cmd + ,` | Settings |
-
-
-## Releases and CI
+### Releases and CI
 
 Two GitHub Actions workflows build on `windows-latest`, `macos-15-intel` and `ubuntu-latest`:
 
 - **`build.yml`** — on every push to `main` and on pull requests: type-check, bundle and package the Linux
-  `.AppImage` and `.deb` (cheapest runner minutes for a private repo). Run it by hand (*Actions → Build → Run
-  workflow*) to also get the `.exe` and `.dmg`. Installers are kept as workflow artifacts for 14 days.
-- **`release.yml`** — on a `v*` tag: builds every installer and publishes them to the public
-  [SpotiTube-releases](https://github.com/Roguu2/SpotiTube-releases/releases) repository. The source repo stays
-  private; the public repo only holds installers and the update feed.
+  `.AppImage` and `.deb`. Run it by hand (*Actions → Build → Run workflow*) to also get the `.exe` and `.dmg`.
+  Installers are kept as workflow artifacts for 14 days.
+- **`release.yml`** — on a `v*` tag: builds every installer and publishes them as a release of this repository,
+  which is also the update feed. It uses the built-in `GITHUB_TOKEN`, so no secrets are needed.
 
 The release goes live automatically, but only after every platform build succeeds and every file is uploaded;
 otherwise it stays a draft. Release notes are generated from the commits since the previous tag.
-
-**One-time setup:** create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
-with access to **only** `Roguu2/SpotiTube-releases` and the permission **Contents: Read and write**. Then store it in
-this repo as the `RELEASES_TOKEN` secret:
-
-```bash
-gh secret set RELEASES_TOKEN --repo Roguu2/SpotiTube
-```
 
 To cut a release:
 
@@ -206,26 +348,30 @@ git push --follow-tags
 
 Installed apps pick it up within hours, or immediately via **Settings → Updates → Check for updates**.
 
-### In-app updates
+> **Moving from the old releases repo.** Up to 0.7.0, installers and the update feed lived in
+> [SpotiTube-releases](https://github.com/Roguu2/SpotiTube-releases/releases), and those installs still look there.
+> While the `RELEASES_TOKEN` secret (a fine-grained token with *Contents: Read and write* on that repo) exists,
+> `release.yml` also copies each release there, so they update to a version that reads from this repo. Once
+> everyone is on 0.7.1 or newer, delete the secret and archive that repo.
 
-Installed builds update themselves from GitHub Releases (`electron-updater`):
+#### In-app updates
 
-- **Checks:** SpotiTube checks 15 s after launch and every 4 hours. You can also check any time in
+Installed builds update themselves from this repository's releases (`electron-updater`):
+
+- **Checks:** 15 s after launch and every 4 hours, sooner again after a failed check. You can also check any time in
   **Settings → Updates**.
 - **Download:** with **Automatic updates** on (the default), a new version downloads in the background. When it's
   ready, a **Restart to update** card appears in the sidebar. Restarting installs silently and relaunches the app;
   otherwise the update installs the next time SpotiTube quits.
-- **Feed:** updates come from the published releases in the public `SpotiTube-releases` repo, through the
-  `latest.yml` / `latest-mac.yml` files the release workflow uploads. Drafts are ignored.
+- **Feed:** the `latest.yml` / `latest-mac.yml` / `latest-linux.yml` files of the latest published release; drafts
+  are ignored. If github.com answers with a server error, SpotiTube reads the same files through GitHub's API.
 - **macOS:** automatic installation only works for code-signed builds. Unsigned macOS builds report the update and
   link to the download page instead.
 
-Installers are **not code-signed**. Windows SmartScreen will warn on first run (**More info → Run anyway**). On
-macOS, right-click the app and choose **Open** the first time, or run `xattr -cr /Applications/SpotiTube.app`. To
-sign, add `CSC_LINK` / `CSC_KEY_PASSWORD` (and Apple notarization credentials) as repository secrets and remove
-`CSC_IDENTITY_AUTO_DISCOVERY: false` from the workflows.
+Installers are **not code-signed**. To sign, add `CSC_LINK` / `CSC_KEY_PASSWORD` (and Apple notarization
+credentials) as repository secrets and remove `CSC_IDENTITY_AUTO_DISCOVERY: false` from the workflows.
 
-## Architecture
+### Architecture
 
 ```
 ┌──────────────────────────── Main process (Node) ─────────────────────────────┐
@@ -264,7 +410,7 @@ src/
   providers/       renderer-side source metadata (labels, colours)
 ```
 
-### Adding a music source
+#### Adding a music source
 
 Every source implements `IMusicProvider` from [`src/core/types.ts`](src/core/types.ts):
 
@@ -286,7 +432,7 @@ To add one (SoundCloud, local FLAC/MP3, …):
 
 `resolveStreamUrl` may return any `https:` URL; the stream proxy handles range requests, CORS and URL expiry.
 
-### Security
+#### Security
 
 - **Renderer isolation:** the renderer runs sandboxed with context isolation and no Node integration.
 - **IPC:** every handler validates its input and rejects senders other than the app's own pages.
@@ -296,7 +442,7 @@ To add one (SoundCloud, local FLAC/MP3, …):
 - **Stream proxy:** it binds to `127.0.0.1`, serves only randomly-named streams it has registered, and rejects
   requests with a foreign `Host` header.
 
-## Data locations
+### Data locations
 
 Everything is stored locally in the app's user-data directory:
 
@@ -304,11 +450,13 @@ Everything is stored locally in the app's user-data directory:
 | --- | --- |
 | Windows | `%APPDATA%\SpotiTube\` |
 | macOS | `~/Library/Application Support/SpotiTube/` |
+| Linux | `~/.config/SpotiTube/` |
 
 `spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
-the last 500 plays, `session.json` the saved queue and `window-state.json` the window size and position. `dsp-profiles.json` holds per-track audio settings and custom EQ presets. Deleting the folder resets the app.
+up to 500 recent plays, `session.json` the saved queue, `window-state.json` the window size and position and
+`ytmusic-sync.json` the state of playlist sync. Deleting the folder resets the app.
 
-## Troubleshooting
+### Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
@@ -322,5 +470,6 @@ the last 500 plays, `session.json` the saved queue and `window-state.json` the w
 ## Disclaimer
 
 SpotiTube is an independent, unofficial project for personal use. It is not affiliated with, endorsed by or
-sponsored by Spotify or YouTube/Google. It streams audio through unofficial YouTube interfaces, which may conflict
-with YouTube's Terms of Service and can break whenever YouTube changes them. Use it at your own discretion.
+sponsored by Spotify or YouTube/Google; Spotify and YouTube Music are trademarks of their respective owners. It plays
+audio through YouTube services, which may conflict with YouTube's Terms of Service and can change at any time. Use it
+at your own discretion.
