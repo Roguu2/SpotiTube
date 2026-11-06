@@ -45,11 +45,9 @@ export function createMainWindow(): BrowserWindow {
   win.on('maximize', emitMaximized)
   win.on('unmaximize', emitMaximized)
 
-  // Never navigate the app window away; open external links in the browser.
+  // Never navigate the app window away; open external https links in the browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) {
-      void shell.openExternal(url)
-    }
+    if (url.startsWith('https://')) void shell.openExternal(url)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {

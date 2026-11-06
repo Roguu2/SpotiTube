@@ -15,7 +15,7 @@ import { YtMusicSync } from './services/ytmusicSync'
 import { DiscordPresence } from './services/discord'
 import { notifyTrack } from './services/trackNotifications'
 import { isMiniMode } from './services/windowState'
-import { isTrustedSender } from './ipc/handle'
+import { isAppPage, isTrustedSender } from './ipc/handle'
 import { UpdateService } from './services/updater'
 import { cleanUpRemovedFeatures, getSettings } from './services/store'
 import { YouTubeClient } from './services/youtube'
@@ -78,7 +78,27 @@ function identifyEmbedRequests(): void {
   )
 }
 
+/** What the app's own page uses: fullscreen (cozy mode) and copying text (Settings). */
+const ALLOWED_PERMISSIONS = new Set(['fullscreen', 'clipboard-sanitized-write'])
+
+/**
+ * Electron grants every permission by default, to every frame. Refuse all but
+ * the few the app uses, and give those only to the app's own page; the YouTube
+ * frame may go fullscreen and nothing else (camera, mic, location, HID…).
+ */
+function restrictPermissions(): void {
+  const allowed = (permission: string, url: string): boolean =>
+    ALLOWED_PERMISSIONS.has(permission) && (isAppPage(url) || (permission === 'fullscreen' && url.startsWith('https://www.youtube-nocookie.com/')))
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    callback(allowed(permission, details.requestingUrl ?? contents?.getURL() ?? ''))
+  })
+  session.defaultSession.setPermissionCheckHandler((contents, permission, requestingOrigin, details) => {
+    return allowed(permission, details.requestingUrl ?? details.embeddingOrigin ?? requestingOrigin ?? contents?.getURL() ?? '')
+  })
+}
+
 async function bootstrap(): Promise<void> {
+  restrictPermissions()
   const youtube = new YouTubeClient()
   const resolver = new StreamResolver(youtube)
   const matcher = new TrackMatcher(youtube)

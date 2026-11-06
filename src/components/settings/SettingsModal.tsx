@@ -545,7 +545,7 @@ function PlaybackSection() {
           {clearingCache ? <LoaderCircle size={13} className="animate-spin" /> : 'Clear'}
         </Button>
       </div>
-      <Field label="yt-dlp path (optional)" hint="Used as a last-resort stream extractor. Leave empty to use yt-dlp from your PATH.">
+      <Field label="yt-dlp path (optional)" hint="Used as a last-resort stream extractor. The full path to yt-dlp, or leave empty to use yt-dlp from your PATH.">
         <input
           value={ytDlpPath}
           onChange={(e) => setYtDlpPath(e.target.value)}

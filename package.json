@@ -32,13 +32,13 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
-    "@fontsource-variable/fraunces": "^5.2.8",
     "electron-store": "^12.0.0",
     "electron-updater": "^6.8.11",
     "youtubei.js": "^18.3.0"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.20.5",

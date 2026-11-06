@@ -8,6 +8,26 @@ files:
   - out/**
   - package.json
   - '!**/*.map'
+  # youtubei.js runs through its Node build; its prebuilt bundles for browsers,
+  # React Native and Cloudflare Workers are dead weight (~4.5 MB), as are
+  # meriyah's UMD and minified copies (the Node build imports its .mjs/.cjs).
+  - '!node_modules/youtubei.js/bundle/**'
+  - '!node_modules/meriyah/dist/meriyah.{umd.js,umd.min.js,min.mjs}'
+# Chromium's UI strings for these languages only (the app itself is in English);
+# the other ~50 locale packs are ~47 MB of an install.
+electronLanguages:
+  - en-US
+  - pl
+# Lock down what the Electron binary allows: it can't be run as plain Node, take
+# NODE_OPTIONS or --inspect, and only loads the app from its asar, which is checked
+# against the hash embedded at build time (so a modified app.asar won't start).
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
 asarUnpack:
   - resources/**
 npmRebuild: false

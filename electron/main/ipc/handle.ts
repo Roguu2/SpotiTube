@@ -1,14 +1,36 @@
 import { ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { is } from '@electron-toolkit/utils'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { IpcChannel, IpcResult } from '@core/ipc'
 import { errorMessage } from '../services/http'
 
-/** Only our own renderer (bundled file or the dev server) may call privileged handlers. */
-export function isTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
-  const url = event.senderFrame?.url ?? ''
-  if (url.startsWith('file://')) return true
+/** The bundled renderer page (this file is bundled into out/main). */
+const RENDERER_PAGE = resolve(join(import.meta.dirname, '../renderer/index.html'))
+
+function samePath(a: string, b: string): boolean {
+  return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b
+}
+
+/**
+ * Whether `url` is the app's own page: exactly the bundled index.html (not just
+ * any local file), or the dev server while developing.
+ */
+export function isAppPage(url: string): boolean {
+  if (url.startsWith('file://')) {
+    try {
+      return samePath(resolve(fileURLToPath(url.split(/[?#]/)[0])), RENDERER_PAGE)
+    } catch {
+      return false
+    }
+  }
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   return is.dev && !!devUrl && url.startsWith(devUrl)
+}
+
+/** Only our own renderer (bundled page or the dev server) may call privileged handlers. */
+export function isTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  return isAppPage(event.senderFrame?.url ?? '')
 }
 
 /**

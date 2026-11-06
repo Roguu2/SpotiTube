@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { app, safeStorage } from 'electron'
 import type { AppSettings, AppSettingsPatch } from '@core/ipc'
 import type { StreamCandidate, UnifiedTrack } from '@core/types'
+import { ytDlpPathProblem } from './ytdlp'
 
 export const SPOTIFY_REDIRECT_PORT = 43821
 export const SPOTIFY_REDIRECT_URI = `http://127.0.0.1:${SPOTIFY_REDIRECT_PORT}/callback`
@@ -88,7 +89,13 @@ export function getSettings(): AppSettings {
 export function updateSettings(patch: AppSettingsPatch): AppSettings {
   const next: PersistedSettings = { ...DEFAULT_SETTINGS, ...store.get('settings') }
   if (patch.spotifyClientId !== undefined) next.spotifyClientId = patch.spotifyClientId.trim()
-  if (patch.ytDlpPath !== undefined) next.ytDlpPath = patch.ytDlpPath.trim()
+  if (patch.ytDlpPath !== undefined) {
+    const path = String(patch.ytDlpPath).trim()
+    // This path gets run as a program, so it must really be yt-dlp.
+    const problem = ytDlpPathProblem(path)
+    if (problem) throw new Error(problem)
+    next.ytDlpPath = path
+  }
   if (patch.showDemoContent !== undefined) next.showDemoContent = patch.showDemoContent
   if (patch.closeToTray !== undefined) next.closeToTray = patch.closeToTray
   if (patch.syntheticFallback !== undefined) next.syntheticFallback = patch.syntheticFallback
