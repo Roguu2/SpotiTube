@@ -187,7 +187,11 @@ export class YouTubeMusicProvider implements IMusicProvider {
 
   getArtist(ref: ArtistRef): Promise<ArtistPage> {
     const key = `artist|${ref.id ?? ''}|${ref.name}`
-    return this.cached(key, async () => fetchArtist(await this.youtube.getAnonymous(), ref)) as Promise<ArtistPage>
+    return this.cached(key, async () => {
+      // A YouTube-issued session sees a channel's whole upload list; the local one is the fallback.
+      const yt = await this.youtube.getIssuedSession().catch(() => this.youtube.getAnonymous())
+      return fetchArtist(yt, ref)
+    }) as Promise<ArtistPage>
   }
 
   private cached(key: string, load: () => Promise<AlbumPage | ArtistPage>): Promise<AlbumPage | ArtistPage> {

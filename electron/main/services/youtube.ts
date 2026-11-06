@@ -25,6 +25,7 @@ Log.setLevel(app.isPackaged ? Log.Level.NONE : Log.Level.ERROR)
  */
 export class YouTubeClient {
   private anonymous: Promise<Innertube> | null = null
+  private issued: Promise<Innertube> | null = null
   private authenticated: Promise<Innertube> | null = null
   private cookie: string | null = getSecret('ytmusicCookie')
   private readonly cache = new UniversalCache(true, join(app.getPath('userData'), 'yt-cache'))
@@ -45,6 +46,23 @@ export class YouTubeClient {
       throw error
     })
     return this.anonymous
+  }
+
+  /**
+   * An anonymous session whose visitor id YouTube issued, for pages that refuse a locally
+   * generated one: artist pages load through it, because a plain channel's full upload list
+   * ("Videos → More") answers "This user doesn't have any public YouTube Music content"
+   * otherwise. Made on first use.
+   */
+  getIssuedSession(): Promise<Innertube> {
+    this.issued ??= Innertube.create({
+      retrieve_player: false,
+      location: app.getLocaleCountryCode() || undefined
+    }).catch((error: unknown) => {
+      this.issued = null
+      throw error
+    })
+    return this.issued
   }
 
   getAuthenticated(): Promise<Innertube> {

@@ -263,8 +263,15 @@ export interface ArtistPage {
   artworkUrl?: string
   description?: string
   topSongs: UnifiedTrack[]
+  /**
+   * Videos and songs from the page's carousels. For a plain channel (DJ mixes,
+   * covers, live sets) this is everything it has, since it has no "Top songs".
+   */
+  videos: UnifiedTrack[]
   albums: AlbumSummary[]
   singles: AlbumSummary[]
+  /** Playlists the artist or channel made or appears on. */
+  playlists: UnifiedPlaylist[]
   similar: ArtistSummary[]
 }
 
