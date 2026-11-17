@@ -38,11 +38,15 @@ export function sendMediaCommand(command: MediaCommand): void {
 }
 
 /**
- * Hardware media keys. On macOS the renderer's MediaSession integration owns
- * them (globalShortcut would require Accessibility permission there).
+ * Hardware media keys. On macOS and Windows the renderer's MediaSession
+ * integration owns them: macOS would require Accessibility permission for
+ * globalShortcut, and on Windows registering any media key as a global shortcut
+ * makes Electron turn off Chromium's own media key handling — and with it the
+ * Windows media controls (SMTC), so SpotiTube would vanish from the media
+ * flyout. Windows routes the keys to the current SMTC session instead.
  */
 export function registerMediaKeys(): void {
-  if (process.platform === 'darwin') return
+  if (process.platform === 'darwin' || process.platform === 'win32') return
   for (const [accelerator, command] of MEDIA_KEYS) {
     // Registration fails silently when another app already owns the key.
     globalShortcut.register(accelerator, () => sendMediaCommand(command))

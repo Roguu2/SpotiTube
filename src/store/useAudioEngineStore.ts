@@ -13,6 +13,7 @@ import {
 } from '@core/dsp'
 import { getAudioEngine, type AudioEngine, type TransportState } from '@/audio/AudioEngine'
 import { getEmbedPlayer, type YouTubeEmbedPlayer } from '@/audio/YouTubeEmbedPlayer'
+import { getMediaSessionAnchor } from '@/audio/MediaSessionAnchor'
 
 const SAVE_DEBOUNCE_MS = 400
 const VOLUME_KEY = 'spotitube.volume'
@@ -197,7 +198,12 @@ export const useAudioEngineStore = create<AudioEngineState>((set, get) => {
       embed.setVolume(volume, muted)
       // Only the active backend drives the UI's transport.
       engine.subscribe((transport) => get().backend === 'dsp' && set({ transport }))
-      embed.subscribe((transport) => get().backend === 'embed' && set({ transport }))
+      const anchor = getMediaSessionAnchor()
+      embed.subscribe((transport) => {
+        // The OS media controls follow the app's own document only while it plays something too.
+        anchor.sync(transport.isPlaying)
+        if (get().backend === 'embed') set({ transport })
+      })
       const e = engine
       void e.whenReady().then(() => set({ pitchShiftAvailable: e.pitchShiftAvailable }))
       set({

@@ -46,6 +46,7 @@ export function useAppBootstrap(): void {
       // Through the player, so a restored (not yet loaded) track starts too.
       session.setActionHandler('play', () => void player().play())
       session.setActionHandler('pause', () => player().pause())
+      session.setActionHandler('stop', () => player().pause())
       session.setActionHandler('previoustrack', () => void player().previous())
       session.setActionHandler('nexttrack', () => void player().next())
       session.setActionHandler('seekto', (details) => details.seekTime !== undefined && player().seek(details.seekTime))
