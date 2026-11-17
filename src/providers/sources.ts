@@ -46,5 +46,13 @@ export const SOURCES: Record<SourceId, SourceMeta> = {
     color: '#a1a1aa',
     pillClass: 'bg-zinc-500/15 text-zinc-300 ring-1 ring-inset ring-zinc-500/40',
     textClass: 'text-zinc-300'
+  },
+  radio: {
+    id: 'radio',
+    label: 'Radio',
+    short: 'FM',
+    color: '#f59e0b',
+    pillClass: 'bg-amber-500/15 text-amber-300 ring-1 ring-inset ring-amber-500/40',
+    textClass: 'text-amber-300'
   }
 }

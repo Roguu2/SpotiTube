@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import type { PresenceInfo } from '@core/ipc'
-import { artistLine, type UnifiedTrack } from '@core/types'
+import type { UnifiedTrack } from '@core/types'
+import { nowPlayingText } from '@/lib/radio'
+import { useRadioStore } from '@/store/useRadioStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
@@ -21,9 +23,10 @@ function presence(): PresenceInfo | null {
   const { current, currentTime } = usePlayerStore.getState()
   const { transport } = useAudioEngineStore.getState()
   if (!current) return null
+  const text = nowPlayingText(current, useRadioStore.getState().liveTitles[current.id])
   return {
-    title: current.title,
-    artists: artistLine(current),
+    title: text.title,
+    artists: text.artist,
     album: current.album?.name,
     artworkUrl: current.artworkUrl,
     source: current.source,

@@ -5,6 +5,7 @@ import { useLibraryStore } from '@/store/useLibraryStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { albumRefOf, artistRefOf } from '@/store/useCatalogStore'
 import { cx } from '@/lib/format'
+import { RADIO_ARTIST_PREFIX } from '@/lib/radio'
 
 /** Opening a page from the Now playing view also closes it, so the page is actually seen. */
 function useOpen(): (view: Parameters<ReturnType<typeof useLibraryStore.getState>['navigate']>[0]) => void {
@@ -29,6 +30,7 @@ export function ArtistLinks({
 }) {
   const open = useOpen()
   if (!artists.length) return null
+  if (artists[0].id?.startsWith(RADIO_ARTIST_PREFIX)) return <span className={cx('truncate', className)}>{artists[0].name}</span>
   return (
     <span className={cx('truncate', className)}>
       {artists.map((artist, i) => (

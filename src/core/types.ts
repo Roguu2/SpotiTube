@@ -4,10 +4,10 @@
  */
 
 /** Where content originally comes from — drives the colour-coded source badge. */
-export type SourceId = 'spotify' | 'ytmusic' | 'hybrid' | 'local'
+export type SourceId = 'spotify' | 'ytmusic' | 'hybrid' | 'local' | 'radio'
 
 /** Which provider implementation owns an item — drives IPC routing. */
-export type ProviderId = 'spotify' | 'ytmusic' | 'hybrid' | 'demo'
+export type ProviderId = 'spotify' | 'ytmusic' | 'hybrid' | 'demo' | 'radio'
 
 export interface UnifiedArtist {
   id: string
@@ -85,6 +85,7 @@ export interface StreamCandidate {
  * - `embed`: YouTube's official embedded player — used when YouTube does not hand out
  *   full direct streams. No DSP beyond speed, but complete, compliant playback.
  * - `synthetic`: a generated preview when nothing could be matched at all.
+ * Radio stations play as `stream`, live and without a YouTube candidate.
  */
 export type PlaybackMode = 'stream' | 'embed' | 'synthetic'
 

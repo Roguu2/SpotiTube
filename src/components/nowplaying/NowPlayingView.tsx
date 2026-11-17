@@ -9,12 +9,14 @@ import { AlbumLink, ArtistLinks } from '@/components/library/CatalogLinks'
 import { LikeButton } from '@/components/ui/LikeButton'
 import { useEmbedActive } from '@/components/player/EmbedMiniPlayer'
 import { LyricsPanel } from './LyricsPanel'
+import { RadioNowPanel } from './RadioNowPanel'
 import { Backdrop } from './Backdrop'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useLibraryStore } from '@/store/useLibraryStore'
 import { useEmbedLayoutStore } from '@/store/useEmbedLayoutStore'
 import { useLyricsStore } from '@/store/useLyricsStore'
+import { isRadio } from '@/lib/radio'
 
 const PREFETCH_DELAY_MS = 5_000
 
@@ -110,7 +112,7 @@ export function NowPlayingView() {
                   {current.title}
                 </h2>
                 <LikeButton track={current} size={22} className="mt-1 size-8" />
-                <AddToHybridMenu tracks={[current]} className="mt-1 size-8 shrink-0" />
+                {!isRadio(current) && <AddToHybridMenu tracks={[current]} className="mt-1 size-8 shrink-0" />}
               </div>
               <p className="mt-1.5 truncate text-[clamp(15px,1.3vw,19px)] text-white/70">
                 <ArtistLinks artists={current.artists} linkClassName="hover:text-white" />
@@ -124,7 +126,11 @@ export function NowPlayingView() {
           </div>
 
           <div className="min-h-0 min-w-0 py-2">
-            <LyricsPanel key={current.id} track={current} />
+            {isRadio(current) ? (
+              <RadioNowPanel key={current.id} track={current} />
+            ) : (
+              <LyricsPanel key={current.id} track={current} />
+            )}
           </div>
         </div>
       ) : (

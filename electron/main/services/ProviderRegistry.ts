@@ -27,6 +27,7 @@ import type { StreamResolver } from './streamResolver'
 import type { StreamProxy } from './streamProxy'
 import { errorMessage } from './http'
 import { getProfileName, getSettings, getStreamOverride, setStreamOverride } from './store'
+import { broadcastRadioTitle, resolveStreamUrl as resolveRadioStream } from './radio'
 
 /** Uploads handed to the renderer as embed fallbacks. */
 const MAX_CANDIDATES = 6
@@ -57,6 +58,7 @@ export class ProviderRegistry {
   ) {}
 
   provider(id: ProviderId): IMusicProvider {
+    if (id === 'radio') throw new Error('Radio stations are not part of a music library')
     return this.providers[id]
   }
 
@@ -141,6 +143,15 @@ export class ProviderRegistry {
    * 4. With no match at all, fall back to a synthesized preview (`synthetic`) if enabled.
    */
   async getPlaybackSource(track: UnifiedTrack): Promise<PlaybackSource> {
+    if (track.source === 'radio') {
+      // Live: resolved on every connection, with the station's song titles passed on as they change.
+      const url = this.proxy.registerLive(
+        track.id,
+        () => resolveRadioStream(track.sourceTrackId),
+        (title) => broadcastRadioTitle(track.id, title)
+      )
+      return { mode: 'stream', url, alternatives: [], isOverride: false }
+    }
     if (track.source === 'local') {
       const upstream = await this.provider(track.providerId).resolveStreamUrl(track)
       const url = this.proxy.register(track.id, () => this.provider(track.providerId).resolveStreamUrl(track), upstream)
@@ -242,6 +253,7 @@ export class ProviderRegistry {
   }
 
   async getSimilar(track: UnifiedTrack): Promise<UnifiedTrack[]> {
+    if (track.source === 'radio') throw new Error('Radio stations have no similar tracks')
     const override = getStreamOverride(track.id)
     const seed =
       override?.videoId ??
@@ -253,6 +265,7 @@ export class ProviderRegistry {
   }
 
   async getCandidates(track: UnifiedTrack, query?: string): Promise<StreamCandidate[]> {
+    if (track.source === 'radio') return []
     return this.matcher.candidates(track, query)
   }
 

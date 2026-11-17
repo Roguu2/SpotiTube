@@ -5,6 +5,7 @@ import {
   type IpcChannel,
   type IpcResult,
   type MediaCommand,
+  type RadioNowPlaying,
   type UpdateState,
   type YtSyncStatus
 } from '@core/ipc'
@@ -131,7 +132,16 @@ const electronAPI: ElectronAPI = {
   presence: {
     update: (enabled, info) => ipcRenderer.send(IpcChannels.presenceUpdate, enabled, info)
   },
-
+  radio: {
+    getMapStations: () => invoke(IpcChannels.radioGetMap),
+    search: (query) => invoke(IpcChannels.radioSearch, query),
+    getCountries: () => invoke(IpcChannels.radioGetCountries),
+    getTags: () => invoke(IpcChannels.radioGetTags),
+    getSaved: () => invoke(IpcChannels.radioGetSaved),
+    setFavorite: (station, favorite) => invoke(IpcChannels.radioSetFavorite, station, favorite),
+    addRecent: (station) => invoke(IpcChannels.radioAddRecent, station),
+    onNowPlaying: (listener) => subscribe<[RadioNowPlaying]>(IpcChannels.radioNowPlaying, listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

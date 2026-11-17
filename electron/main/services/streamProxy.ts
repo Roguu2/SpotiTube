@@ -1,4 +1,5 @@
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { createServer, request as httpRequest, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import type { AddressInfo } from 'node:net'
@@ -11,6 +12,12 @@ const MAX_STREAMS = 256
 const MAX_SYNTH_CACHE = 4
 const SYNTH_SCHEME = 'synth:'
 const SLICE_TIMEOUT_MS = 20_000
+/** A live station that sends nothing for this long has dropped. */
+const LIVE_IDLE_TIMEOUT_MS = 20_000
+const LIVE_MAX_REDIRECTS = 5
+/** Playlist files (.pls/.m3u) are tiny; anything bigger is not one. */
+const MAX_PLAYLIST_BYTES = 64 * 1024
+const LIVE_USER_AGENT = 'SpotiTube (https://github.com/Roguu2/SpotiTube)'
 
 /** Produces the upstream URL; `force` means the previous URL was rejected and must be replaced. */
 export type UpstreamResolver = (force: boolean) => Promise<string>
@@ -20,12 +27,139 @@ interface StreamEntry {
   resolve: UpstreamResolver
   upstream?: string
   meta?: { size: number; type: string }
+  /** A live radio stream: endless, no byte ranges; song titles arrive in-band (ICY). */
+  live?: { onTitle: (title: string) => void }
 }
 
 class UpstreamRejected extends Error {
   constructor(readonly status: number) {
     super(`upstream responded ${status}`)
   }
+}
+
+/** `StreamTitle='Artist - Song';` from an ICY metadata block; null when the block has none. */
+function parseStreamTitle(block: Buffer): string | null {
+  let text = block.toString('utf8')
+  // Older stations send Latin-1, which isn't valid UTF-8.
+  if (text.includes('�')) text = block.toString('latin1')
+  const match = /StreamTitle='(.*?)';/s.exec(text)
+  return match ? match[1].trim().slice(0, 300) : null
+}
+
+/**
+ * Splits an ICY stream into audio and metadata: every `metaint` bytes of audio
+ * are followed by a length byte (×16) and that many bytes of metadata.
+ */
+function icyDemuxer(metaint: number, onTitle: (title: string) => void): (chunk: Buffer) => Buffer[] {
+  let audioLeft = metaint
+  let lengthNext = false
+  let metaLeft = 0
+  let meta: Buffer[] = []
+  return (chunk) => {
+    const audio: Buffer[] = []
+    let i = 0
+    while (i < chunk.length) {
+      if (audioLeft > 0) {
+        const n = Math.min(audioLeft, chunk.length - i)
+        audio.push(chunk.subarray(i, i + n))
+        i += n
+        audioLeft -= n
+        lengthNext = audioLeft === 0
+      } else if (lengthNext) {
+        metaLeft = chunk[i++] * 16
+        lengthNext = false
+        meta = []
+        if (metaLeft === 0) audioLeft = metaint
+      } else {
+        const n = Math.min(metaLeft, chunk.length - i)
+        meta.push(chunk.subarray(i, i + n))
+        i += n
+        metaLeft -= n
+        if (metaLeft === 0) {
+          const title = parseStreamTitle(Buffer.concat(meta))
+          if (title !== null) onTitle(title)
+          audioLeft = metaint
+        }
+      }
+    }
+    return audio
+  }
+}
+
+/** Connects to a station, following redirects; resolves once it answers 200. */
+function openLive(url: string, signal: AbortSignal, redirects = 0): Promise<IncomingMessage> {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url)
+    if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+      reject(new Error('Unsupported stream address'))
+      return
+    }
+    const request = (target.protocol === 'https:' ? httpsRequest : httpRequest)(
+      target,
+      {
+        headers: { 'Icy-MetaData': '1', 'User-Agent': LIVE_USER_AGENT, Accept: '*/*' },
+        signal,
+        timeout: LIVE_IDLE_TIMEOUT_MS
+      },
+      (response) => {
+        const status = response.statusCode ?? 0
+        const location = response.headers.location
+        if (status >= 300 && status < 400 && location) {
+          response.resume()
+          if (redirects >= LIVE_MAX_REDIRECTS) reject(new Error('The station redirects too many times'))
+          else resolve(openLive(new URL(location, target).toString(), signal, redirects + 1))
+          return
+        }
+        if (status !== 200) {
+          response.resume()
+          reject(new Error(`The station answered HTTP ${status}`))
+          return
+        }
+        resolve(response)
+      }
+    )
+    request.on('timeout', () => request.destroy(new Error("The station isn't sending anything")))
+    request.on('error', reject)
+    request.end()
+  })
+}
+
+async function readSmall(response: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of response as AsyncIterable<Buffer>) {
+    size += chunk.length
+    if (size > MAX_PLAYLIST_BYTES) break
+    chunks.push(chunk)
+  }
+  response.destroy()
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+/** Some stations hand out a .pls/.m3u playlist that points at the actual stream. */
+function isPlaylist(type: string, url: string): boolean {
+  return /mpegurl|scpls|x-pls|^text\//i.test(type) || /\.(m3u|pls)(\?|$)/i.test(url)
+}
+
+/** Opens a station's audio, unwrapping one level of playlist. */
+async function openStation(url: string, signal: AbortSignal): Promise<IncomingMessage> {
+  const response = await openLive(url, signal)
+  const type = response.headers['content-type'] ?? ''
+  if (!isPlaylist(type, url)) return response
+  const text = await readSmall(response)
+  if (text.includes('#EXT-X-')) throw new Error('This station only streams in HLS, which SpotiTube cannot play')
+  const inner = /^(?:File\d+=)?\s*(https?:\/\/\S+)/im.exec(text)?.[1]
+  if (!inner) throw new Error("The station's playlist has no stream in it")
+  return openLive(inner, signal)
+}
+
+/** Chromium's names for what stations call their audio. */
+function liveContentType(type: string | undefined): string {
+  const base = (type ?? '').split(';')[0].trim().toLowerCase()
+  if (base === 'audio/aacp' || base === 'audio/aac' || base === 'audio/x-aac') return 'audio/aac'
+  if (base === 'application/ogg' || base === 'audio/ogg') return 'audio/ogg'
+  if (base.startsWith('audio/')) return base
+  return 'audio/mpeg'
 }
 
 function parseRange(header: string | undefined, size: number): { start: number; end: number } | null | 'invalid' {
@@ -105,6 +239,17 @@ export class StreamProxy {
     return `http://127.0.0.1:${this.port}/stream/${token}`
   }
 
+  /**
+   * Registers a live radio stream. Its address is resolved again on every
+   * connection (stations move), and song titles from the stream go to `onTitle`.
+   */
+  registerLive(key: string, resolve: () => Promise<string>, onTitle: (title: string) => void): string {
+    const url = this.register(key, () => resolve())
+    const entry = this.entries.get(this.tokensByKey.get(key) ?? '')
+    if (entry) entry.live = { onTitle }
+    return url
+  }
+
   private corsHeaders(): Record<string, string> {
     return {
       'Access-Control-Allow-Origin': '*',
@@ -135,12 +280,53 @@ export class StreamProxy {
       return
     }
 
+    if (entry.live) {
+      await this.serveLive(req, res, entry, entry.live.onTitle)
+      return
+    }
     entry.upstream ??= await entry.resolve(false)
     if (entry.upstream.startsWith(SYNTH_SCHEME)) {
       this.serveBuffer(req, res, this.synth(entry.upstream.slice(SYNTH_SCHEME.length)), 'audio/wav')
       return
     }
     await this.serveRemote(req, res, entry)
+  }
+
+  /** Relays a station as one endless response, with its ICY metadata taken out of the audio. */
+  private async serveLive(req: IncomingMessage, res: ServerResponse, entry: StreamEntry, onTitle: (title: string) => void): Promise<void> {
+    const abort = new AbortController()
+    res.on('close', () => abort.abort())
+    const upstream = await openStation(await entry.resolve(false), abort.signal)
+    if (abort.signal.aborted) {
+      upstream.destroy()
+      return
+    }
+    res.writeHead(200, {
+      'Content-Type': liveContentType(upstream.headers['content-type']),
+      'Cache-Control': 'no-store',
+      ...this.corsHeaders()
+    })
+    if (req.method === 'HEAD') {
+      upstream.destroy()
+      res.end()
+      return
+    }
+
+    const metaint = Number(upstream.headers['icy-metaint'])
+    const demux = metaint > 0 ? icyDemuxer(metaint, onTitle) : (chunk: Buffer) => [chunk]
+    try {
+      for await (const chunk of upstream as AsyncIterable<Buffer>) {
+        if (abort.signal.aborted) break
+        for (const audio of demux(chunk)) {
+          if (!res.write(audio)) await once(res, 'drain', { signal: abort.signal }).catch(() => undefined)
+        }
+      }
+    } catch {
+      // The station dropped; ending the response lets the player reconnect.
+    } finally {
+      upstream.destroy()
+      res.end()
+    }
   }
 
   private synth(seed: string): Buffer {

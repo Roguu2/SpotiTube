@@ -92,6 +92,10 @@ const AUTOPLAY_BATCH = 15
 /** Recently heard tracks are not suggested again. */
 const AUTOPLAY_RECENT_PLAYS = 50
 
+/** A live station that drops is reconnected, at most this many times a minute. */
+const MAX_RADIO_RECONNECTS = 3
+const RADIO_RECONNECT_WINDOW_MS = 60_000
+
 /** Uploads YouTube refused to play here (Premium-only, region, removed…), tried last from then on. */
 const REFUSED_KEY = 'spotitube.refusedUploads'
 const MAX_REFUSED = 500
@@ -132,6 +136,17 @@ let radioActive = false
 let lastAutoplaySeedId: string | null = null
 let autoplayInFlight: Promise<boolean> | null = null
 let endOfTrackGuard: (() => boolean) | null = null
+let radioReconnects: { trackId: string; at: number[] } = { trackId: '', at: [] }
+
+/** Whether a dropped station may be reconnected once more (and counts the attempt). */
+function mayReconnect(trackId: string): boolean {
+  const now = Date.now()
+  if (radioReconnects.trackId !== trackId) radioReconnects = { trackId, at: [] }
+  radioReconnects.at = radioReconnects.at.filter((t) => now - t < RADIO_RECONNECT_WINDOW_MS)
+  if (radioReconnects.at.length >= MAX_RADIO_RECONNECTS) return false
+  radioReconnects.at.push(now)
+  return true
+}
 
 /** Lets another feature stop playback when a track ends instead of advancing (returns true to stop). */
 export function registerEndOfTrackGuard(guard: () => boolean): void {
@@ -259,6 +274,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     if (!force && order.length - position - 1 > AUTOPLAY_LOOKAHEAD) return Promise.resolve(false)
 
     const seed = queue[order[order.length - 1]]
+    if (seed?.source === 'radio') return Promise.resolve(false)
     // One batch per seed: a radio that yields nothing new must not be refetched in a loop.
     if (!seed || seed.id === lastAutoplaySeedId) return Promise.resolve(false)
     lastAutoplaySeedId = seed.id
@@ -307,6 +323,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const { queue, order } = get()
     const track = queue[order[position]]
     if (!track) return
+    const live = track.source === 'radio'
+    // A live station has no timeline to resume in.
+    if (live) startAt = undefined
 
     const token = ++playToken
     // A queued track that starts playing is no longer "queued".
@@ -347,6 +366,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       set({ status: 'ready' })
       consecutiveFailures = 0
       if (source.mode === 'synthetic') toast.info(`No match found for “${track.title}” — playing a synthesized preview`)
+      if (live) return
       prefetchNext()
       void extendWithSimilar()
     } catch (error) {
@@ -473,6 +493,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     async previous() {
       const engine = useAudioEngineStore.getState()
+      // A live station can't rewind: previous always means the previous station.
+      if (get().current?.source === 'radio') {
+        if (get().position > 0) await start(get().position - 1)
+        return
+      }
       if (engine.transport.currentTime > RESTART_THRESHOLD_SECONDS || get().position === 0) {
         engine.seek(0)
         return
@@ -516,6 +541,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         useAudioEngineStore.getState().pause()
         return
       }
+      const current = get().current
+      // A station only "ends" when it drops: reconnect rather than move on.
+      if (current?.source === 'radio' && mayReconnect(current.id)) {
+        await start(get().position)
+        return
+      }
       if (get().repeat === 'one') {
         const engine = useAudioEngineStore.getState()
         engine.seek(0)
@@ -533,7 +564,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const engine = useAudioEngineStore.getState()
       const at = engine.transport.currentTime
       try {
-        if (engine.backend === 'dsp' && source.mode === 'stream' && source.candidate) {
+        if (track.source === 'radio') {
+          if (!mayReconnect(track.id)) throw new Error(engine.transport.error ?? 'The station keeps dropping')
+          toast.info(`Reconnecting to “${track.title}”…`)
+          await start(get().position)
+        } else if (engine.backend === 'dsp' && source.mode === 'stream' && source.candidate) {
           // The direct stream died mid-song: continue at the same spot in the official player.
           toast.info('Stream interrupted — continuing with the YouTube player')
           await playEmbedded(track, { ...source, mode: 'embed' }, token, at)
@@ -619,6 +654,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     async startRadio(track, options) {
+      if (track.source === 'radio') {
+        await get().playQueue([track], 0, { label: `Live radio · ${track.title}` })
+        return
+      }
       await get().playQueue([track], 0, { label: `Radio · ${track.title}` })
       radioActive = true
       const extended = await extendWithSimilar(true)

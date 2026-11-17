@@ -43,6 +43,7 @@ export const useLyricsStore = create<LyricsState>((set, get) => ({
   offsets: readOffsets(),
 
   load(track, force = false) {
+    if (track.source === 'radio') return
     const existing = get().entries[track.id]
     if (existing && !force && existing.status !== 'error') return
     set((s) => ({ entries: { ...s.entries, [track.id]: { status: 'loading' } } }))

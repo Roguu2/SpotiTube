@@ -35,6 +35,14 @@ export function SourceIcon({ source, size = 12, className }: { source: SourceId;
           <circle cx="12" cy="12" r="2.5" />
         </svg>
       )
+    case 'radio':
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+          <circle cx="12" cy="12" r="2" />
+          <path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6" />
+          <path d="M5.3 5.3a9.5 9.5 0 0 0 0 13.4M18.7 5.3a9.5 9.5 0 0 1 0 13.4" />
+        </svg>
+      )
   }
 }
 

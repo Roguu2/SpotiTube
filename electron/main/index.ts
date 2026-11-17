@@ -12,6 +12,7 @@ import { registerLikesIpc } from './ipc/likes'
 import { registerStorageIpc } from './ipc/storage'
 import { registerYtSyncIpc } from './ipc/ytsync'
 import { registerCozyIpc } from './ipc/cozy'
+import { registerRadioIpc } from './ipc/radio'
 import { registerMediaScheme, serveMedia } from './services/companionImage'
 import { YtMusicSync } from './services/ytmusicSync'
 import { DiscordPresence } from './services/discord'
@@ -135,6 +136,7 @@ async function bootstrap(): Promise<void> {
   registerStorageIpc(DISK_CACHE_LIMIT_BYTES)
   serveMedia()
   registerCozyIpc()
+  registerRadioIpc()
   cleanUpRemovedFeatures()
 
   const ytSync = new YtMusicSync({ youtube, matcher, listAccountPlaylists: () => ytmusic.getPlaylists() })

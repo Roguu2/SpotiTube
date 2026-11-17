@@ -11,7 +11,8 @@ const RING: Record<UnifiedPlaylist['source'], string> = {
   spotify: 'hover:ring-spotify/40',
   ytmusic: 'hover:ring-ytmusic/40',
   hybrid: 'hover:ring-white/25',
-  local: 'hover:ring-white/20'
+  local: 'hover:ring-white/20',
+  radio: 'hover:ring-amber-400/40'
 }
 
 export function PlaylistCard({ playlist }: { playlist: UnifiedPlaylist }) {

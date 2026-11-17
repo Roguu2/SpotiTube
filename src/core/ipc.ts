@@ -91,7 +91,16 @@ export const IpcChannels = {
   discoverGetPlaylists: 'discover:get-playlists',
 
   likesGetIds: 'likes:get-ids',
-  likesSet: 'likes:set'
+  likesSet: 'likes:set',
+
+  radioGetMap: 'radio:get-map',
+  radioSearch: 'radio:search',
+  radioGetCountries: 'radio:get-countries',
+  radioGetTags: 'radio:get-tags',
+  radioGetSaved: 'radio:get-saved',
+  radioSetFavorite: 'radio:set-favorite',
+  radioAddRecent: 'radio:add-recent',
+  radioNowPlaying: 'radio:now-playing'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
@@ -362,6 +371,61 @@ export interface Lyrics {
   durationSec: number | null
 }
 
+/** A live station from the Radio Browser directory (radio-browser.info). */
+export interface RadioStation {
+  /** Radio Browser's station uuid. */
+  id: string
+  name: string
+  homepage?: string
+  /** The station's logo, when it has one. */
+  favicon?: string
+  country?: string
+  /** ISO 3166-1 alpha-2, e.g. "PL". */
+  countryCode?: string
+  /** Region or city, as the station lists it. */
+  state?: string
+  tags: string[]
+  codec?: string
+  /** kbit/s, when known. */
+  bitrate?: number
+  votes: number
+  lat?: number
+  lon?: number
+}
+
+/** Station search: any mix of name, tag and country; the most popular come first. */
+export interface RadioQuery {
+  name?: string
+  tag?: string
+  countryCode?: string
+  offset?: number
+}
+
+export interface RadioCountry {
+  code: string
+  name: string
+  stations: number
+}
+
+export interface RadioTag {
+  name: string
+  stations: number
+}
+
+export interface RadioSaved {
+  favorites: RadioStation[]
+  /** Newest first. */
+  recent: RadioStation[]
+}
+
+/** The song a station is playing right now, from its stream's ICY metadata. */
+export interface RadioNowPlaying {
+  /** The playing track's id (`radio:<uuid>`). */
+  trackId: string
+  /** Empty when the station sends no title. */
+  title: string
+}
+
 export interface ElectronAPI {
   app: {
     getInfo(): Promise<AppInfo>
@@ -486,5 +550,19 @@ export interface ElectronAPI {
   presence: {
     /** Turns the Discord status on or off and sets what it shows. */
     update(enabled: boolean, info: PresenceInfo | null): void
+  }
+  radio: {
+    /** Every station with a location, for the globe; downloaded at most once a week and kept on disk. */
+    getMapStations(): Promise<RadioStation[]>
+    search(query: RadioQuery): Promise<RadioStation[]>
+    getCountries(): Promise<RadioCountry[]>
+    /** The most used genre tags. */
+    getTags(): Promise<RadioTag[]>
+    getSaved(): Promise<RadioSaved>
+    /** Resolves to the new list of favorites. */
+    setFavorite(station: RadioStation, favorite: boolean): Promise<RadioStation[]>
+    /** Resolves to the new list of recent stations. */
+    addRecent(station: RadioStation): Promise<RadioStation[]>
+    onNowPlaying(listener: (info: RadioNowPlaying) => void): Unsubscribe
   }
 }

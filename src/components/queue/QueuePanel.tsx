@@ -9,7 +9,9 @@ import { VersionPicker } from './VersionPicker'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
+import { useRadioStore } from '@/store/useRadioStore'
 import { cx, formatDurationMs } from '@/lib/format'
+import { isRadio } from '@/lib/radio'
 
 export const QUEUE_PANEL_WIDTH = 360
 
@@ -53,6 +55,7 @@ function SectionTitle({ children, aside }: { children: ReactNode; aside?: ReactN
 
 function NowPlayingSection() {
   const current = usePlayerStore((s) => s.current)
+  const liveTitle = useRadioStore((s) => (current ? s.liveTitles[current.id] : undefined))
   const context = usePlayerStore((s) => s.context)
   const isPlaying = useAudioEngineStore((s) => s.transport.isPlaying)
   const [versionsOpen, setVersionsOpen] = useState(false)
@@ -81,11 +84,11 @@ function NowPlayingSection() {
               <span className="truncate text-[13.5px] font-semibold text-zinc-100">{current.title}</span>
             </div>
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-              <span className="truncate text-[12px] text-zinc-400">{artistLine(current)}</span>
+              <span className="truncate text-[12px] text-zinc-400">{liveTitle || artistLine(current)}</span>
             </div>
           </div>
         </div>
-        <button
+        {!isRadio(current) && <button
           type="button"
           aria-expanded={versionsOpen}
           onClick={() => setVersionsOpen((o) => !o)}
@@ -93,8 +96,8 @@ function NowPlayingSection() {
         >
           Change version (live, remix, slowed…)
           {versionsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-        {versionsOpen && (
+        </button>}
+        {versionsOpen && !isRadio(current) && (
           <div className="mt-2 px-0.5">
             <VersionPicker />
           </div>

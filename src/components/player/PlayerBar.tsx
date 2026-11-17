@@ -22,11 +22,14 @@ import { Slider } from '@/components/ui/Slider'
 import { AddToHybridMenu } from '@/components/library/AddToHybridMenu'
 import { ArtistLinks } from '@/components/library/CatalogLinks'
 import { LikeButton } from '@/components/ui/LikeButton'
+import { LiveDot } from '@/components/ui/LiveDot'
 import { SeekBar } from './SeekBar'
 import { SleepTimerButton } from './SleepTimerButton'
 import { usePlayerStore } from '@/store/usePlayerStore'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
+import { useRadioStore } from '@/store/useRadioStore'
+import { isRadio } from '@/lib/radio'
 
 export function PlayerBar() {
   return (
@@ -48,12 +51,14 @@ function NowPlaying() {
   const error = usePlayerStore((s) => s.error)
   const openQueue = useSettingsStore((s) => s.toggleQueue)
   const toggleNowPlaying = useSettingsStore((s) => s.toggleNowPlaying)
+  const liveTitle = useRadioStore((s) => (current ? s.liveTitles[current.id] : undefined))
 
   if (!current) {
     return <div className="text-[13px] text-zinc-600">Pick a track to start listening.</div>
   }
 
-  const showSource = source?.mode === 'embed' || (current.source !== 'ytmusic' && source?.mode === 'stream')
+  const radio = isRadio(current)
+  const showSource = !radio && (source?.mode === 'embed' || (current.source !== 'ytmusic' && source?.mode === 'stream'))
   const sourceLabel = source?.mode === 'embed' ? 'YouTube player' : 'via YT Music'
 
   return (
@@ -74,13 +79,18 @@ function NowPlaying() {
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-[14px] font-semibold text-zinc-100">{current.title}</span>
           <LikeButton track={current} className="size-6" />
-          <AddToHybridMenu tracks={[current]} className="size-6" />
+          {!radio && <AddToHybridMenu tracks={[current]} className="size-6" />}
         </div>
         <ArtistLinks artists={current.artists} className="block text-[12.5px] text-zinc-400" />
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {status === 'error' ? (
             <span className="truncate text-[11px] text-red-400" title={error ?? undefined}>
               Playback failed
+            </span>
+          ) : radio ? (
+            <span className="flex min-w-0 items-center gap-1.5 text-[11px]" title={liveTitle || undefined}>
+              <LiveDot />
+              <span className="truncate text-zinc-400">{liveTitle || 'Live radio'}</span>
             </span>
           ) : source?.mode === 'synthetic' ? (
             <span className="truncate text-[11px] text-amber-300/90">Synth preview</span>

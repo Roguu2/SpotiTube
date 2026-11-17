@@ -48,7 +48,7 @@ It works straight away with sample playlists, and you can connect your own accou
     <td width="50%" valign="top">
       <h3>✨ Find something new</h3>
       Not sure what to play? <b>Discover</b> picks a playlist for your mood (chill, party, workout…) or favourite genre.
-      Open any album or artist with one click.
+      Open any album or artist with one click, or spin the <b>Radio</b> globe and tune in to live stations anywhere.
     </td>
     <td width="50%" valign="top">
       <h3>🎤 Sing along</h3>
@@ -112,6 +112,11 @@ It works straight away with sample playlists, and you can connect your own accou
 - **Discover** — not sure what to play? **Surprise me** picks a random playlist from any of YouTube Music's moods
   (Chill, Party, Workout…) or genres (Hip-hop, Rock, Jazz…) and plays it shuffled; or pick a mood or genre and choose
   one of its playlists. Like one? Save it to your library. Leans local (e.g. Polish rap in Poland).
+- **Radio** — live stations from all over the world, Radio Garden style: spin a globe of about 10,000 stations,
+  click a green dot to see what's on air there, or search, browse by country or genre, or press **Surprise me**.
+  The player bar and Now playing show the song the station is playing (when it says), the heart keeps a station in
+  **Your stations**, and next/previous move between stations. The directory comes from
+  [Radio Browser](https://www.radio-browser.info); HLS-only stations aren't supported.
 - **Now playing & synced lyrics** — click the cover in the player bar (or `Ctrl/Cmd + L`) for a full-screen view
   over a backdrop made from the album art, with time-synced lyrics from [LRCLIB](https://lrclib.net) that follow the
   song. Click a line to jump there; nudge the sync if a version's timing differs.
@@ -451,8 +456,9 @@ Everything is stored locally in the app's user-data directory:
 | Linux | `~/.config/SpotiTube/` |
 
 `spotitube.json` holds settings, encrypted secrets, hybrid playlists and pinned stream sources. `history.json` holds
-up to 500 recent plays, `session.json` the saved queue, `window-state.json` the window size and position and
-`ytmusic-sync.json` the state of playlist sync. Deleting the folder resets the app.
+up to 500 recent plays, `session.json` the saved queue, `window-state.json` the window size and position,
+`ytmusic-sync.json` the state of playlist sync, `radio.json` your favorite and recent stations and `radio-map.json`
+the globe's stations (refreshed weekly). Deleting the folder resets the app.
 
 ### Troubleshooting
 

@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
-import { artistLine } from '@core/types'
+import { nowPlayingText } from '@/lib/radio'
 import { useAudioEngineStore } from '@/store/useAudioEngineStore'
 import { useLibraryStore } from '@/store/useLibraryStore'
 import { usePlayerStore } from '@/store/usePlayerStore'
+import { useRadioStore } from '@/store/useRadioStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { toast } from '@/store/useToastStore'
 import { useUpdateStore } from '@/store/useUpdateStore'
@@ -82,10 +83,11 @@ export function useAppBootstrap(): void {
       }
 
       const track = player().current
-      const signature = `${track?.id ?? ''}|${isPlaying}`
+      const text = track ? nowPlayingText(track, useRadioStore.getState().liveTitles[track.id]) : null
+      const signature = `${track?.id ?? ''}|${text?.title ?? ''}|${isPlaying}`
       if (signature !== lastTraySignature) {
         lastTraySignature = signature
-        window.electronAPI.media.updateNowPlaying(track ? { title: track.title, artist: artistLine(track), isPlaying } : null)
+        window.electronAPI.media.updateNowPlaying(track && text ? { ...text, isPlaying } : null)
       }
     })
 

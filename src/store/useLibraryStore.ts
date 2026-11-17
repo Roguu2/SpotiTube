@@ -11,6 +11,7 @@ export type View =
   | { kind: 'search' }
   | { kind: 'history' }
   | { kind: 'discover' }
+  | { kind: 'radio' }
   | { kind: 'album'; ref: AlbumRef }
   | { kind: 'artist'; ref: ArtistRef }
 
@@ -72,6 +73,7 @@ function readLastView(): { view: View; filter: LibraryFilter } {
       view?.kind === 'search' ||
       view?.kind === 'history' ||
       view?.kind === 'discover' ||
+      view?.kind === 'radio' ||
       ((view?.kind === 'album' || view?.kind === 'artist') && typeof view.ref?.name === 'string') ||
       (view?.kind === 'playlist' && typeof view.playlistId === 'string')
     return {

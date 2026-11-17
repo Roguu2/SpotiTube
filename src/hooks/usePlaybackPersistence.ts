@@ -106,7 +106,8 @@ export function usePlaybackPersistence(): void {
         recordedKey = null
       }
 
-      if (current && key && status === 'ready' && recordedKey !== key) {
+      // Stations keep their own Recent list in the Radio tab.
+      if (current && key && status === 'ready' && recordedKey !== key && current.source !== 'radio') {
         const threshold = duration > 0 ? Math.min(PLAY_THRESHOLD_SECONDS, duration / 2) : PLAY_THRESHOLD_SECONDS
         if (currentTime >= threshold) {
           recordedKey = key

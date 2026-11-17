@@ -15,6 +15,7 @@ export function SeekBar({ disabled = false, showTimes = true }: { disabled?: boo
   const resumeAt = usePlayerStore((s) => (s.status === 'idle' && s.current ? s.resumeAt : null))
   const resumeDuration = usePlayerStore((s) => (s.current?.durationMs ?? 0) / 1000)
   const setResumeAt = usePlayerStore((s) => s.setResumeAt)
+  const live = usePlayerStore((s) => s.current?.source === 'radio')
   const trackRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<number | null>(null)
   const [hover, setHover] = useState<number | null>(null)
@@ -55,6 +56,19 @@ export function SeekBar({ disabled = false, showTimes = true }: { disabled?: boo
   }
 
   const loopVisible = loop.a !== null && duration > 0
+
+  // A live station has no timeline: show how long you've been listening instead.
+  if (live) {
+    return (
+      <div className="flex w-full items-center gap-2.5 text-[11px] text-zinc-500 tabular-nums">
+        {showTimes && <span className="w-10 text-right">{formatTime(transport.currentTime)}</span>}
+        <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/12" aria-hidden="true">
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/45 to-red-500/0 opacity-70" />
+        </div>
+        {showTimes && <span className="w-10 font-semibold tracking-wider text-red-400">LIVE</span>}
+      </div>
+    )
+  }
 
   return (
     <div className="flex w-full items-center gap-2.5 text-[11px] text-zinc-500 tabular-nums">
