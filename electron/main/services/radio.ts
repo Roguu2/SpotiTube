@@ -16,6 +16,12 @@ const FALLBACK_SERVERS = ['de1.api.radio-browser.info', 'de2.api.radio-browser.i
 const MAP_FILE = 'radio-map.json'
 const MAP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 const SEARCH_LIMIT = 80
+/** Separate lookups per name search: the whole query plus its most telling words. */
+const MAX_NAME_LOOKUPS = 5
+/** A query that names a place ("… Los Angeles") favours stations this close to it. */
+const NEARBY_KM = 150
+/** A "place" matching more stations than this is a common word ("radio"), not a place. */
+const MAX_PLACE_MATCHES = 200
 const MAX_FAVORITES = 500
 const MAX_RECENT = 30
 /** Codecs Chromium can't play from a plain stream. */
@@ -189,11 +195,109 @@ export function getMapStations(): Promise<RadioStation[]> {
   return mapStations
 }
 
+/** Lower case, no accents, and frequencies without their dot ("104.3" and "104,3" → "1043"). */
+function normalize(text: string): string {
+  return text
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/(\d)[.,](\d)/g, '$1$2')
+}
+
+/** The words worth matching on: numbers, and anything longer than two letters. */
+function queryWords(name: string): string[] {
+  const words = normalize(name)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length > 2 || /\d/.test(w))
+  return [...new Set(words)]
+}
+
+/**
+ * Finds stations by name the way people remember them. The directory only
+ * matches a name's exact substring, so "KBIG 104.3 - Los Angeles" would miss
+ * "1043 MYfm": look up the whole query and its words (frequencies with and
+ * without the dot) separately, then rank by how many of the words each
+ * station's name, place and tags contain.
+ */
+async function searchByName(name: string): Promise<RadioStation[]> {
+  const words = queryWords(name)
+  const longest = [...words].sort((a, b) => b.length - a.length)
+  const frequencies = name.match(/\d+[.,]\d+/g) ?? []
+  const lookups = [
+    ...new Set([name, ...frequencies, ...frequencies.map((f) => f.replace(/[.,]/, '')), ...longest].map((q) => q.trim()))
+  ]
+    .filter(Boolean)
+    .slice(0, MAX_NAME_LOOKUPS)
+
+  const lists = await Promise.allSettled(
+    lookups.map((q) =>
+      api<ApiStation[]>('/json/stations/search', { name: q, hidebroken: true, order: 'votes', reverse: true, limit: SEARCH_LIMIT })
+    )
+  )
+  if (lists.every((l) => l.status === 'rejected')) throw (lists[0] as PromiseRejectedResult).reason
+  const stations = toStations(lists.flatMap((l) => (l.status === 'fulfilled' ? l.value : [])))
+  const near = await placeCenter(words)
+
+  const wanted = normalize(name).trim()
+  const ranked = stations.map((station) => {
+    const title = normalize(station.name)
+    const haystack = `${title} ${normalize(stationPlaceText(station))} ${station.tags.join(' ')}`
+    // Numbers (frequencies) say the most about which station is meant.
+    const matched = words.reduce((sum, w) => sum + (haystack.includes(w) ? (/\d/.test(w) ? 3 : 1) : 0), 0)
+    // The whole query inside the name beats any number of loose words.
+    const nearby =
+      near && station.lat !== undefined && station.lon !== undefined && distanceKm(near, { lat: station.lat, lon: station.lon }) < NEARBY_KM
+    const score = (title.includes(wanted) ? 100 : 0) + matched + (nearby ? 2 : 0)
+    return { station, score }
+  })
+  return ranked
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score || b.station.votes - a.station.votes)
+    .slice(0, SEARCH_LIMIT)
+    .map((r) => r.station)
+}
+
+function stationPlaceText(station: RadioStation): string {
+  return [station.state, station.country].filter(Boolean).join(' ')
+}
+
+function distanceKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const rad = Math.PI / 180
+  const h =
+    Math.sin(((b.lat - a.lat) * rad) / 2) ** 2 +
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(((b.lon - a.lon) * rad) / 2) ** 2
+  return 12_742 * Math.asin(Math.sqrt(h))
+}
+
+/**
+ * Where the query's place words point, using the globe's stations: "los angeles"
+ * is the state of a few stations there. Directory entries often only say
+ * "California", so the query's place is matched by location instead of text.
+ */
+async function placeCenter(words: string[]): Promise<{ lat: number; lon: number } | null> {
+  const letters = words.filter((w) => !/\d/.test(w))
+  if (!letters.length || !mapStations) return null
+  const stations = await mapStations.catch(() => [] as RadioStation[])
+  // Longest phrases first: "los angeles" before "angeles".
+  for (let size = Math.min(3, letters.length); size > 0; size--) {
+    for (let i = 0; i + size <= letters.length; i++) {
+      const phrase = letters.slice(i, i + size).join(' ')
+      if (phrase.length < 4) continue
+      const hits = stations.filter((s) => s.lat !== undefined && normalize(`${s.state ?? ''} ${s.name}`).includes(phrase))
+      if (!hits.length || hits.length > MAX_PLACE_MATCHES) continue
+      const median = (values: number[]): number => values.sort((a, b) => a - b)[Math.floor(values.length / 2)]
+      return { lat: median(hits.map((s) => s.lat as number)), lon: median(hits.map((s) => s.lon as number)) }
+    }
+  }
+  return null
+}
+
 export async function searchStations(query: RadioQuery): Promise<RadioStation[]> {
   const name = typeof query.name === 'string' ? query.name.trim().slice(0, 100) : ''
   const tag = typeof query.tag === 'string' ? query.tag.trim().toLowerCase().slice(0, 60) : ''
   const countryCode = typeof query.countryCode === 'string' && /^[A-Z]{2}$/.test(query.countryCode) ? query.countryCode : ''
   const offset = Number.isInteger(query.offset) && (query.offset as number) > 0 ? Math.min(query.offset as number, 10_000) : 0
+  if (name && !tag && !countryCode && !offset) return searchByName(name)
   const list = await api<ApiStation[]>('/json/stations/search', {
     name,
     tag,
