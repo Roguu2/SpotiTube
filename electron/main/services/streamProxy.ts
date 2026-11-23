@@ -2,7 +2,9 @@ import { createServer, request as httpRequest, type IncomingMessage, type Server
 import { request as httpsRequest } from 'node:https'
 import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
-import type { AddressInfo } from 'node:net'
+import { BlockList, isIP, isIPv4, type AddressInfo, type LookupFunction } from 'node:net'
+import { lookup as dnsLookup, type LookupAddress } from 'node:dns'
+import { cleanStreamTitle } from './streamTitle'
 import { renderSynthPreview } from './synth'
 import { errorMessage } from './http'
 
@@ -37,13 +39,17 @@ class UpstreamRejected extends Error {
   }
 }
 
-/** `StreamTitle='Artist - Song';` from an ICY metadata block; null when the block has none. */
+/**
+ * The song from `StreamTitle='…';` in an ICY metadata block, tidied into
+ * "Artist - Song" ('' when it isn't a song); null when the block has no title.
+ */
 function parseStreamTitle(block: Buffer): string | null {
   let text = block.toString('utf8')
   // Older stations send Latin-1, which isn't valid UTF-8.
   if (text.includes('�')) text = block.toString('latin1')
   const match = /StreamTitle='(.*?)';/s.exec(text)
-  return match ? match[1].trim().slice(0, 300) : null
+  // Metadata blocks are at most 4 KB; iHeart-style titles run long with attributes.
+  return match ? cleanStreamTitle(match[1].slice(0, 4080)) : null
 }
 
 /**
@@ -86,6 +92,61 @@ function icyDemuxer(metaint: number, onTitle: (title: string) => void): (chunk: 
   }
 }
 
+const LOCAL_NETWORK_REFUSED = "This station points at an address on your own network, which SpotiTube won't connect to"
+
+/**
+ * Addresses a radio station has no business reaching: this computer, the local
+ * network (routers, printers, NAS), link-local and carrier-grade NAT ranges.
+ * Station addresses, their redirects and playlist entries come from a public,
+ * community-edited directory, so they're checked against this before connecting.
+ */
+const PRIVATE_RANGES = (() => {
+  const list = new BlockList()
+  for (const [network, prefix] of [
+    ['0.0.0.0', 8],
+    ['10.0.0.0', 8],
+    ['100.64.0.0', 10],
+    ['127.0.0.0', 8],
+    ['169.254.0.0', 16],
+    ['172.16.0.0', 12],
+    ['192.168.0.0', 16],
+    ['224.0.0.0', 3]
+  ] as const)
+    list.addSubnet(network, prefix, 'ipv4')
+  for (const [network, prefix] of [
+    ['::', 127],
+    ['fc00::', 7],
+    ['fe80::', 10],
+    ['ff00::', 8]
+  ] as const)
+    list.addSubnet(network, prefix, 'ipv6')
+  return list
+})()
+
+function isPrivateAddress(address: string): boolean {
+  // IPv4 written as IPv6 (::ffff:192.168.1.1) is the IPv4 address.
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address)?.[1]
+  if (mapped) return PRIVATE_RANGES.check(mapped, 'ipv4')
+  return PRIVATE_RANGES.check(address, isIPv4(address) ? 'ipv4' : 'ipv6')
+}
+
+/** DNS lookup that refuses names resolving only to private addresses (and drops those that do). */
+const publicOnlyLookup: LookupFunction = (hostname, options, callback) => {
+  dnsLookup(hostname, { ...options, all: true }, (error, addresses: LookupAddress[]) => {
+    if (error) {
+      callback(error, '', 0)
+      return
+    }
+    const allowed = addresses.filter((entry) => !isPrivateAddress(entry.address))
+    if (!allowed.length) {
+      callback(Object.assign(new Error(LOCAL_NETWORK_REFUSED), { code: 'EPRIVATE' }), '', 0)
+      return
+    }
+    if (options.all) (callback as unknown as (error: null, addresses: LookupAddress[]) => void)(null, allowed)
+    else callback(null, allowed[0].address, allowed[0].family)
+  })
+}
+
 /** Connects to a station, following redirects; resolves once it answers 200. */
 function openLive(url: string, signal: AbortSignal, redirects = 0): Promise<IncomingMessage> {
   return new Promise((resolve, reject) => {
@@ -94,11 +155,18 @@ function openLive(url: string, signal: AbortSignal, redirects = 0): Promise<Inco
       reject(new Error('Unsupported stream address'))
       return
     }
+    // A literal IP skips DNS (and so publicOnlyLookup); check it here.
+    const literal = target.hostname.replace(/^\[|\]$/g, '')
+    if (isIP(literal) && isPrivateAddress(literal)) {
+      reject(new Error(LOCAL_NETWORK_REFUSED))
+      return
+    }
     const request = (target.protocol === 'https:' ? httpsRequest : httpRequest)(
       target,
       {
         headers: { 'Icy-MetaData': '1', 'User-Agent': LIVE_USER_AGENT, Accept: '*/*' },
         signal,
+        lookup: publicOnlyLookup,
         timeout: LIVE_IDLE_TIMEOUT_MS
       },
       (response) => {
