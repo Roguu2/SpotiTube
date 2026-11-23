@@ -486,11 +486,21 @@ function YouTubeMusicAccount() {
         <>
           <p className="px-4 pt-4 text-[13px] leading-relaxed text-zinc-400">
             Search and playback already work without signing in. Connecting brings in your YouTube Music playlists and liked songs, and lets
-            you sync SpotiTube playlists. YouTube has no developer key for this, so SpotiTube signs in with your browser's cookie:
+            you sync SpotiTube playlists. YouTube has no developer key for this, so SpotiTube signs in with a browser cookie. Take it from a
+            private window: YouTube keeps renewing the cookies of a session that's open in a browser, which would soon disconnect SpotiTube,
+            but a private window you close is never opened again.
           </p>
           <Steps>
-            <Step n={1} title={<>Open YouTube Music in Chrome, Edge or Firefox and make sure you're signed in.</>}>
-              <ExternalButton href="https://music.youtube.com">Open YouTube Music</ExternalButton>
+            <Step
+              n={1}
+              title={
+                <>
+                  Open a private window: <Key>Ctrl</Key> <Key>Shift</Key> <Key>N</Key> in Chrome or Edge, <Key>Ctrl</Key> <Key>Shift</Key>{' '}
+                  <Key>P</Key> in Firefox (on a Mac, <Key>⌘</Key> instead of <Key>Ctrl</Key>). Go to YouTube Music there and sign in.
+                </>
+              }
+            >
+              <CopyField value="https://music.youtube.com" label="YouTube Music address" />
             </Step>
             <Step
               n={2}
@@ -544,6 +554,15 @@ function YouTubeMusicAccount() {
                 {connecting === 'ytmusic' ? 'Checking…' : 'Connect YouTube Music'}
               </Button>
             </Step>
+            <Step
+              n={6}
+              title={
+                <>
+                  Once it says <Ui>Connected</Ui>, close the private window. <Ui>Don't sign out</Ui> there: signing out ends the session and
+                  SpotiTube with it, while just closing the window keeps it working.
+                </>
+              }
+            />
           </Steps>
           <div className="px-4 pb-4">
             <Note tone="warn">
@@ -559,7 +578,11 @@ function YouTubeMusicAccount() {
               },
               {
                 q: 'It worked, but stopped after a while',
-                a: 'Signing out of YouTube in that browser (or clearing its cookies) ends the session the cookie belongs to. Copy a new one and connect again; copying it from a browser you stay signed in to keeps it working longest.'
+                a: 'The session behind the cookie ended. That happens when it stays open in a browser (YouTube renews its cookies), when you sign out of it, or when it is removed from your Google account’s device list or you change your password. Go through the steps again in a new private window and close it afterwards without signing out.'
+              },
+              {
+                q: 'A new device showed up in my Google account',
+                a: 'That is the private window’s sign-in, which SpotiTube now uses. Removing it from the device list disconnects SpotiTube.'
               },
               {
                 q: "I can't find the browse request",
