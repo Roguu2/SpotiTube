@@ -44,7 +44,9 @@ export function Modal({ open, onClose, title, description, className, children }
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 420, damping: 34 }}
             className={cx(
-              'flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl shadow-black/70',
+              'flex max-h-full w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl shadow-black/70',
+              // A width passed in replaces the default (two max-w classes would fight, and the default won).
+              !className?.includes('max-w-') && 'max-w-lg',
               className
             )}
           >
